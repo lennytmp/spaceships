@@ -1,0 +1,174 @@
+<html>
+<head>
+  <title>Spaceships Prototype</title>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js" ></script>
+  <link rel="stylesheet" href="http://getbootstrap.com/2.0.4/assets/css/bootstrap-responsive.css">
+  <script>
+  GARAGE_MODE = 0;
+  FIGHT_MODE = 1;
+  var mode = GARAGE_MODE;
+
+  function doUpgrade(player, room) {
+    if (!room.upgrade || !room.upgrade.cost || !player.haveEnoughResources(room.upgrade.cost)) {
+      return false;
+    }
+    var cost = room.upgrade.cost;
+    player.chargeCost(cost);
+    for (key in room.upgrade.improvements) {
+      room[key] += room.upgrade.improvements[key];
+    }
+    for (var resType in cost) {
+      cost[resType] *= 2;
+    }
+    return true;
+  }
+
+  Player.prototype.chargeCost = function(cost) {
+      for (var resType in cost) {
+        this.resources[resType] -= cost[resType];
+      }
+  }
+
+  function renderEasy(obj) {
+    out = "";
+    for (var i in obj) {
+      if (obj.hasOwnProperty(i)) {
+        if (!(obj[i] instanceof Object)) {
+          out += "<li>" + i + ": " + obj[i] + "</li>";
+        } else if (obj[i].render) {
+          out += "<li>" + i + ": " + obj[i].render() + "</li>";
+        }
+      }
+    }
+    return out;
+  }
+
+  function Player() {
+    this.rooms = [];
+    this.maxRooms = 3;
+    this.resources = {"minerals": 100, "gas": 100};
+    this.maxRoomId = 0;
+  }
+
+  function Upgrade(minerals, gas, improvements) {
+    this.cost = {"minerals": minerals, "gas": gas};
+    this.improvements = improvements;
+  }
+  Upgrade.prototype.render = function() {
+    out = "<ul>";
+    out += renderEasy(this);
+    out += "<li>Cost: <ul>" + renderEasy(this.cost) + "</ul></li>";
+    out += "<li>Improvements (delta): <ul>" + renderEasy(this.improvements) + "</ul></li>";
+    out += "</ul>";
+    return out;
+  }
+
+  function LaserRoom(id) {
+    this.id = id;
+    this.title = "Laser";
+    this.hp = 100;
+    this.damage = 1;
+    this.targetId = 0;
+    this.lastShotAt = 0;
+    this.fireRate = 10;
+    this.upgrade = new Upgrade(100, 0, {fireRate: 1});
+  }
+  LaserRoom.prototype.render = function() {
+    out = "<ul>";
+    out += renderEasy(this);
+    out += "</ul>";
+    return out;
+  }
+
+  function ReactorRoom(id) {
+    this.id = id;
+    this.hp = 100;
+    this.title = "Reactor";
+    this.energyMax = 3;
+    this.upgrade = new Upgrade(100, 100, {energyMax: 1});
+  }
+  ReactorRoom.prototype.render = function() {
+    out = "<ul>";
+    out += renderEasy(this);
+    out += "</ul>";
+    return out;
+  }
+
+  function BedRoom(id) {
+    this.id = id;
+    this.hp = 100;
+    this.title = "Bedroom";
+    this.capacity = 1;
+  }
+  BedRoom.prototype.render = function() {
+    out = "<ul>";
+    out += renderEasy(this);
+    out += "</ul>";
+    return out;
+  }
+
+  Player.prototype.addRoom = function(room) {
+    this.rooms[this.maxRoomId] = room;
+    this.maxRoomId++;
+  }
+  Player.prototype.render = function() {
+    out = "<ul>";
+    out += renderEasy(this);
+    out += "<li>Resources: <ul>" + renderEasy(this.resources) + "</ul></li>";
+    out += "</ul>";
+    out += "Rooms:<br /> <ul>";
+    for (id in this.rooms) {
+      var room = this.rooms[id];
+      out += "<li>" + room.title +"<ul>" + renderEasy(this.rooms[id]);
+      if (room.upgrade && room.upgrade.cost && this.haveEnoughResources(room.upgrade.cost)) {
+        out += "<li><a href='#' class='upgrade' id='upgrade_" + room.id + "'>Upgrade</a></li>";
+      }
+      out += "</li></ul>";
+    }
+    out += "</ul>";
+    return out;
+  }
+
+  Player.prototype.haveEnoughResources = function(cost) {
+      for (var resType in cost) {
+        if (this.resources[resType] < cost[resType]) {
+          return false;
+        }
+      }
+      return true;
+  }
+
+
+  $(function() {
+    var player = new Player();
+    player.addRoom(new LaserRoom(player.maxRoomId));
+    player.addRoom(new ReactorRoom(player.maxRoomId));
+    player.addRoom(new BedRoom(player.maxRoomId));
+    $("#you").html(player.render());
+
+    $("#you").on('click', 'a.upgrade', function(){
+      id = parseInt($(this).attr("id").split("_")[1]);
+      if (!doUpgrade(player, player.rooms[id])) {
+        alert("Could not do the upgrade!");
+      } else {
+        alert("Success");
+        $("#you").html(player.render());
+      }
+    });
+
+  });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>The game demo</h1>
+    <div class="row">
+    <div class="span4">
+      Your ship
+      <div id="you"></div>
+    </div>
+<!--<div class="span4">Ship 2</div> -->
+    </div>
+  </div>
+</body>
+</html>
