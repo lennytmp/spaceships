@@ -8,12 +8,12 @@
   FIGHT_MODE = 1;
   var mode = GARAGE_MODE;
 
-  function doUpgrade(player, room) {
-    if (!room.upgrade || !room.upgrade.cost || !player.haveEnoughResources(room.upgrade.cost)) {
+  function doUpgrade(myShip, room) {
+    if (!room.upgrade || !room.upgrade.cost || !myShip.haveEnoughResources(room.upgrade.cost)) {
       return false;
     }
     var cost = room.upgrade.cost;
-    player.chargeCost(cost);
+    myShip.chargeCost(cost);
     for (key in room.upgrade.improvements) {
       room[key] += room.upgrade.improvements[key];
     }
@@ -23,16 +23,22 @@
     return true;
   }
 
-  Player.prototype.chargeCost = function(cost) {
+  Ship.prototype.chargeCost = function(cost) {
       for (var resType in cost) {
         this.resources[resType] -= cost[resType];
       }
   }
 
-  function renderEasy(obj) {
+  function renderEasy(obj, includeOnly, exclude) {
     out = "";
     for (var i in obj) {
       if (obj.hasOwnProperty(i)) {
+        if (includeOnly !== undefined && !includeOnly.has(i)) {
+          continue;
+        }
+        if (exclude !== undefined && exclude.has(i)) {
+          continue;
+        }
         if (!(obj[i] instanceof Object)) {
           out += "<li>" + i + ": " + obj[i] + "</li>";
         } else if (obj[i].render) {
@@ -43,11 +49,12 @@
     return out;
   }
 
-  function Player() {
+  function Ship() {
     this.rooms = [];
     this.maxRooms = 3;
     this.resources = {"minerals": 100, "gas": 100};
     this.maxRoomId = 0;
+    this.isMine = false;
   }
 
   function Upgrade(minerals, gas, improvements) {
@@ -73,9 +80,31 @@
     this.fireRate = 10;
     this.upgrade = new Upgrade(100, 0, {fireRate: 1});
   }
-  LaserRoom.prototype.render = function() {
+  LaserRoom.prototype.render = function(ship, enemy) {
     out = "<ul>";
-    out += renderEasy(this);
+    if (mode == FIGHT_MODE) {
+      if (!ship.isMine) {
+        out += renderEasy(this, undefined, new Set(["upgrade"]));
+      } else {
+        out += renderEasy(this);
+        out += `<li><select class="target" id="${this.id}_target">`;
+        for (k in enemy.rooms) {
+          var selected = "";
+          if (this.targetId == enemy.rooms[k].id) {
+            selected = "selected";
+          }
+          out += `<option ${selected} value="${enemy.rooms[k].id}">${enemy.rooms[k].title}-${enemy.rooms[k].id}</option>`;
+        }
+        out += "</select></li>";
+      }
+    } else {
+      if (ship.isMine && mode == GARAGE_MODE) {
+        out += renderEasy(this);
+        if (mode == GARAGE_MODE && this.upgrade && this.upgrade.cost && ship.haveEnoughResources(this.upgrade.cost)) {
+          out += "<li><a href='#' class='upgrade' id='upgrade_" + this.id + "'>Upgrade</a></li>";
+        }
+      }
+    }
     out += "</ul>";
     return out;
   }
@@ -87,9 +116,19 @@
     this.energyMax = 3;
     this.upgrade = new Upgrade(100, 100, {energyMax: 1});
   }
-  ReactorRoom.prototype.render = function() {
+
+  ReactorRoom.prototype.render = function(ship) {
     out = "<ul>";
-    out += renderEasy(this);
+    if (ship.isMine) {
+      out += renderEasy(this);
+    } else {
+      out += renderEasy(this, undefined, new Set(["upgrade"]));
+    }
+    if (ship.isMine && mode == GARAGE_MODE) {
+      if (mode == GARAGE_MODE && this.upgrade && this.upgrade.cost && ship.haveEnoughResources(this.upgrade.cost)) {
+        out += "<li><a href='#' class='upgrade' id='upgrade_" + this.id + "'>Upgrade</a></li>";
+      }
+    }
     out += "</ul>";
     return out;
   }
@@ -107,29 +146,45 @@
     return out;
   }
 
-  Player.prototype.addRoom = function(room) {
+  Ship.prototype.addRoom = function(room) {
     this.rooms[this.maxRoomId] = room;
     this.maxRoomId++;
   }
-  Player.prototype.render = function() {
+  function renderMyShip(ship, enemy) {
     out = "<ul>";
-    out += renderEasy(this);
-    out += "<li>Resources: <ul>" + renderEasy(this.resources) + "</ul></li>";
+    out += renderEasy(ship);
+    out += `<li>Resources: <ul>${renderEasy(ship.resources)}</ul></li>`;
     out += "</ul>";
     out += "Rooms:<br /> <ul>";
-    for (id in this.rooms) {
-      var room = this.rooms[id];
-      out += "<li>" + room.title +"<ul>" + renderEasy(this.rooms[id]);
-      if (room.upgrade && room.upgrade.cost && this.haveEnoughResources(room.upgrade.cost)) {
-        out += "<li><a href='#' class='upgrade' id='upgrade_" + room.id + "'>Upgrade</a></li>";
-      }
-      out += "</li></ul>";
+    for (id in ship.rooms) {
+      var room = ship.rooms[id];
+      out += `
+        <li>${room.title}<ul>
+          ${room.render(ship, enemy)}
+        </li></ul>`;
     }
     out += "</ul>";
     return out;
   }
 
-  Player.prototype.haveEnoughResources = function(cost) {
+  function renderEnemyShip(ship) {
+    out = "<ul>";
+    out += renderEasy(ship);
+    out += `<li>Resources: <ul>${renderEasy(ship.resources)}</ul></li>`;
+    out += "</ul>";
+    out += "Rooms:<br /> <ul>";
+    for (id in ship.rooms) {
+      var room = ship.rooms[id];
+      out += `
+      <li>${room.title}<ul>
+        ${room.render(ship)}
+      </li></ul>`;
+    }
+    out += "</ul>";
+    return out;
+  }
+
+  Ship.prototype.haveEnoughResources = function(cost) {
       for (var resType in cost) {
         if (this.resources[resType] < cost[resType]) {
           return false;
@@ -139,35 +194,101 @@
   }
 
 
+  var myShip = new Ship();
+  myShip.isMine = true;
+  myShip.addRoom(new LaserRoom(myShip.maxRoomId));
+  myShip.addRoom(new ReactorRoom(myShip.maxRoomId));
+  myShip.addRoom(new BedRoom(myShip.maxRoomId));
+
   $(function() {
-    var player = new Player();
-    player.addRoom(new LaserRoom(player.maxRoomId));
-    player.addRoom(new ReactorRoom(player.maxRoomId));
-    player.addRoom(new BedRoom(player.maxRoomId));
-    $("#you").html(player.render());
+    $("#you").html(renderMyShip(myShip));
 
     $("#you").on('click', 'a.upgrade', function(){
       id = parseInt($(this).attr("id").split("_")[1]);
-      if (!doUpgrade(player, player.rooms[id])) {
+      if (!doUpgrade(myShip, myShip.rooms[id])) {
         alert("Could not do the upgrade!");
       } else {
         alert("Success");
-        $("#you").html(player.render());
+        $("#you").html(renderMyShip(myShip));
       }
     });
 
+    $("#you").on('change', 'select.target', function(){
+      id = parseInt($(this).attr("id").split("_")[0]);
+      myShip.rooms[id].targetId = $(this).val();
+      $("#you").html(renderMyShip(myShip));
+    });
   });
+  function fight() {
+    $("#enemy-title").show();
+    mode = FIGHT_MODE;
+    var enemy = new Ship();
+    enemy.addRoom(new LaserRoom(enemy.maxRoomId));
+    enemy.addRoom(new ReactorRoom(enemy.maxRoomId));
+    enemy.addRoom(new BedRoom(enemy.maxRoomId));
+    $("#enemy").html(renderEnemyShip(enemy));
+
+    $("#fight-button").hide();
+    $("#you").html(renderMyShip(myShip, enemy));
+    setTimeout(function() {
+        progressFight(myShip, enemy);
+      }, 1000);
+  }
+
+  function getShipTargetsDamage(ship) {
+    var myDamage = {};
+    for (var k = 0; k < ship.rooms.length; k++) {
+      var room = ship.rooms[k];
+      if (room.title == "Laser") {
+        if (myDamage[room.targetId] === undefined) {
+          myDamage[room.targetId] = 0;
+        }
+        myDamage[room.targetId] += room.damage;
+      }
+    }
+    return myDamage;
+  }
+
+  function applyDamage(ship, damage) {
+    var myDamage = {};
+    for (var id in damage) {
+      ship.rooms[id].hp -= damage[id]
+    }
+  }
+
+  function progressFight(myShip, enemy) {
+    // TODO: This is biased towards the damage from my ship, it shouldn't be.
+    enemyDamage = getShipTargetsDamage(myShip);
+    myDamage = getShipTargetsDamage(enemy);
+    applyDamage(enemy, enemyDamage);
+    applyDamage(myShip, myDamage);
+
+    $("#enemy").html(renderEnemyShip(enemy));
+    $("#you").html(renderMyShip(myShip, enemy));
+
+    console.log("Tick");
+    setTimeout(function() {
+        progressFight(myShip, enemy);
+      }, 1000);
+  }
   </script>
 </head>
 <body>
   <div class="container">
-    <h1>The game demo</h1>
+    <div class="row">
+      <div class="span4">
+        <a id="fight-button" href="#" onclick="fight()">Fight</a>
+      </div>
+    </div>
     <div class="row">
     <div class="span4">
-      Your ship
+      <h2>Your ship</h2>
       <div id="you"></div>
     </div>
-<!--<div class="span4">Ship 2</div> -->
+    <div class="span4">
+      <h2 id="enemy-title" style="display:none;">Enemy</h2>
+      <div id="enemy"></div>
+    </div>
     </div>
   </div>
 </body>
