@@ -6,6 +6,7 @@
   <script>
   GARAGE_MODE = 0;
   FIGHT_MODE = 1;
+  HP_UNIT = 10;
   var mode = GARAGE_MODE;
 
   function doUpgrade(myShip, room) {
@@ -73,27 +74,30 @@
   function LaserRoom(id) {
     this.id = id;
     this.title = "Laser";
-    this.hp = 100;
-    this.damage = 1;
+    this.hp = 10*HP_UNIT;
+    this.maxHp = this.hp;
+    this.damage = HP_UNIT;
     this.targetId = 0;
     this.lastShotAt = 0;
     this.fireRate = 10;
-    this.upgrade = new Upgrade(100, 0, {fireRate: 1});
+    this.upgrade = new Upgrade(100, 0, {damage: 1});
   }
   LaserRoom.prototype.render = function(ship, enemy) {
     out = "<ul>";
     if (mode == FIGHT_MODE) {
-      if (!ship.isMine) {
         out += renderEasy(this, undefined, new Set(["upgrade"]));
-      } else {
-        out += renderEasy(this);
-        out += `<li><select class="target" id="${this.id}_target">`;
+      if (ship.isMine) {
+        out += `<li>Target: <select class="target" id="${this.id}_target">`;
         for (k in enemy.rooms) {
+          var target = enemy.rooms[k];
+          if (target.hp <= 0) {
+            continue;
+          }
           var selected = "";
-          if (this.targetId == enemy.rooms[k].id) {
+          if (this.targetId == target.id) {
             selected = "selected";
           }
-          out += `<option ${selected} value="${enemy.rooms[k].id}">${enemy.rooms[k].title}-${enemy.rooms[k].id}</option>`;
+          out += `<option ${selected} value="${target.id}">${target.title}-${target.id}</option>`;
         }
         out += "</select></li>";
       }
@@ -111,7 +115,8 @@
 
   function ReactorRoom(id) {
     this.id = id;
-    this.hp = 100;
+    this.hp = 10*HP_UNIT;
+    this.maxHp = this.hp;
     this.title = "Reactor";
     this.energyMax = 3;
     this.upgrade = new Upgrade(100, 100, {energyMax: 1});
@@ -135,7 +140,8 @@
 
   function BedRoom(id) {
     this.id = id;
-    this.hp = 100;
+    this.hp = HP_UNIT;
+    this.maxHp = this.hp;
     this.title = "Bedroom";
     this.capacity = 1;
   }
@@ -200,6 +206,7 @@
   myShip.addRoom(new ReactorRoom(myShip.maxRoomId));
   myShip.addRoom(new BedRoom(myShip.maxRoomId));
 
+ // onload aka main
   $(function() {
     $("#you").html(renderMyShip(myShip));
 
@@ -218,7 +225,34 @@
       myShip.rooms[id].targetId = $(this).val();
       $("#you").html(renderMyShip(myShip));
     });
+
+    
+    setInterval(function() {
+        recoverHp(myShip);
+      }, 1000);
   });
+
+  function recoverHp(myShip) {
+    if (mode != GARAGE_MODE) {
+      return;
+    }
+    var recovered = false;
+    for (var k in myShip.rooms) {
+      var room = myShip.rooms[k];
+      if (room.hp < room.maxHp) {
+        recovered = true;
+        room.hp += HP_UNIT;
+        if (room.hp > room.maxHp) {
+          room.hp = room.maxHp;
+        }
+        break;
+      }
+    }
+    if (recovered) {
+      $("#you").html(renderMyShip(myShip));
+    }
+  }
+
   function fight() {
     $("#enemy-title").show();
     mode = FIGHT_MODE;
@@ -237,7 +271,7 @@
 
   function getShipTargetsDamage(ship) {
     var myDamage = {};
-    for (var k = 0; k < ship.rooms.length; k++) {
+    for (var k in ship.rooms) {
       var room = ship.rooms[k];
       if (room.title == "Laser") {
         if (myDamage[room.targetId] === undefined) {
@@ -249,11 +283,49 @@
     return myDamage;
   }
 
+  function checkDead(ship) {
+    for (var k in ship.rooms) {
+      if (ship.rooms[k].hp > 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function setNewTargetsIfNeeded(ship, enemy) {
+    var newTarget;
+    for (var k in enemy.rooms) {
+      if (enemy.rooms[k].hp > 0) {
+        newTarget = enemy.rooms[k].id;
+      }
+    }
+    for (var k in ship.rooms) {
+      var room = ship.rooms[k];
+      if (room.title == "Laser") {
+        if (enemy.rooms[room.targetId].hp <= 0) {
+          room.targetId = newTarget;
+        }
+      }
+    }
+  }
+
   function applyDamage(ship, damage) {
     var myDamage = {};
     for (var id in damage) {
-      ship.rooms[id].hp -= damage[id]
+      var target = ship.rooms[id];
+      target.hp -= damage[id];
+      if (target.hp < 0) {
+        target.hp = 0;
+      }
     }
+  }
+
+  function finishFight() {
+      mode = GARAGE_MODE;
+      $("#enemy-title").hide();
+      $("#fight-button").show();
+      $("#enemy").html("");
+      $("#you").html(renderMyShip(myShip));
   }
 
   function progressFight(myShip, enemy) {
@@ -262,6 +334,21 @@
     myDamage = getShipTargetsDamage(enemy);
     applyDamage(enemy, enemyDamage);
     applyDamage(myShip, myDamage);
+    if (checkDead(enemy)) {
+      alert("You won!");
+      for (type in enemy.resources) {
+        myShip.resources[type] += enemy.resources[type];
+      }
+      finishFight();
+      return;
+    }
+    if (checkDead(myShip)) {
+      alert("You lost!");
+      finishFight();
+      return;
+    }
+    setNewTargetsIfNeeded(myShip, enemy);
+    setNewTargetsIfNeeded(enemy, myShip);
 
     $("#enemy").html(renderEnemyShip(enemy));
     $("#you").html(renderMyShip(myShip, enemy));
