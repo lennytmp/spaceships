@@ -4,9 +4,11 @@
   <script src="https://code.jquery.com/jquery-3.3.1.min.js" ></script>
   <link rel="stylesheet" href="http://getbootstrap.com/2.0.4/assets/css/bootstrap-responsive.css">
   <script>
-  GARAGE_MODE = 0;
-  FIGHT_MODE = 1;
-  HP_UNIT = 10;
+  var GARAGE_MODE = 0;
+  var FIGHT_MODE = 1;
+  var HP_UNIT = 10;
+  var MAX_FIGHT_TICKS = 90;
+
   var mode = GARAGE_MODE;
 
   function doUpgrade(myShip, room) {
@@ -265,7 +267,7 @@
     $("#fight-button").hide();
     $("#you").html(renderMyShip(myShip, enemy));
     setTimeout(function() {
-        progressFight(myShip, enemy);
+        progressFight(myShip, enemy, 0);
       }, 1000);
   }
 
@@ -277,7 +279,7 @@
         if (myDamage[room.targetId] === undefined) {
           myDamage[room.targetId] = 0;
         }
-        myDamage[room.targetId] += room.damage;
+        myDamage[room.targetId] += (room.hp/room.maxHp)*room.damage;
       }
     }
     return myDamage;
@@ -313,7 +315,7 @@
     var myDamage = {};
     for (var id in damage) {
       var target = ship.rooms[id];
-      target.hp -= damage[id];
+      target.hp -= Math.round(damage[id]);
       if (target.hp < 0) {
         target.hp = 0;
       }
@@ -328,7 +330,12 @@
       $("#you").html(renderMyShip(myShip));
   }
 
-  function progressFight(myShip, enemy) {
+  function progressFight(myShip, enemy, timeElapsed) {
+    if (timeElapsed >= MAX_FIGHT_TICKS) {
+      alert("Draw due to timeout!");
+      finishFight();
+      return;
+    }
     // TODO: This is biased towards the damage from my ship, it shouldn't be.
     enemyDamage = getShipTargetsDamage(myShip);
     myDamage = getShipTargetsDamage(enemy);
@@ -355,7 +362,7 @@
 
     console.log("Tick");
     setTimeout(function() {
-        progressFight(myShip, enemy);
+        progressFight(myShip, enemy, timeElapsed + 1);
       }, 1000);
   }
   </script>
