@@ -21,6 +21,7 @@
   var FIGHT_MODE = 1;
   var HP_UNIT = 10;
   var MAX_FIGHT_TICKS = 90;
+  var FIGHT_RESOLUTION_MS = 100;
 
   var mode = GARAGE_MODE;
 
@@ -61,17 +62,17 @@
   function LaserRoom(id) {
     this.id = id;
     this.title = "Laser";
-    this.hp = 10*HP_UNIT;
+    this.hp = 3*HP_UNIT;
     this.maxHp = this.hp;
     this.damage = HP_UNIT;
     this.targetId = 0;
     this.lastShotAt = 0;
     this.fireRate = 10;
-    this.upgrade = new Upgrade(100, 0, {damage: 1});
+    this.upgrade = new Upgrade(100, 0, {fireRate: 1});
   }
   function ReactorRoom(id) {
     this.id = id;
-    this.hp = 10*HP_UNIT;
+    this.hp = 3*HP_UNIT;
     this.maxHp = this.hp;
     this.title = "Reactor";
     this.energyMax = 3;
@@ -108,7 +109,7 @@
     for (var k in myShip.rooms) {
       var room = myShip.rooms[k];
       if (room.hp < room.maxHp) {
-        room.hp += HP_UNIT;
+        room.hp += 1;
         if (room.hp > room.maxHp) {
           room.hp = room.maxHp;
         }
@@ -117,16 +118,31 @@
     }
   }
 
+  function resetAllRoomsTimestamps(ship) {
+    var now = Date.now();
+    for (id in ship.rooms) {
+      var room = ship.rooms[id];
+      if (room.lastShotAt !== undefined) {
+        room.lastShotAt = now;
+      }
+    }
+  }
+
 
   function getShipTargetsDamage(ship) {
     var myDamage = {};
+    var now = Date.now();
     for (var k in ship.rooms) {
       var room = ship.rooms[k];
       if (room.title == "Laser") {
+        if (room.lastShotAt > now - (50/room.fireRate)*1000) {
+          continue;
+        }
         if (myDamage[room.targetId] === undefined) {
           myDamage[room.targetId] = 0;
         }
         myDamage[room.targetId] += (room.hp/room.maxHp)*room.damage;
+        room.lastShotAt = now;
       }
     }
     return myDamage;
@@ -172,7 +188,7 @@
 
 
   function progressFight(myShip, enemy, timeLeft, callback) {
-    if (timeLeft.min <= 0 && timeLeft.sec <= 0) {
+    if (timeLeft.now > timeLeft.end) {
       alert("Draw due to timeout!");
       callback();
       return;
@@ -198,15 +214,25 @@
     setNewTargetsIfNeeded(myShip, enemy);
     setNewTargetsIfNeeded(enemy, myShip);
 
-    console.log("Tick");
     setTimeout(function() {
-        timeLeft.sec -= 1;
-        if (timeLeft.sec < 0) {
-          timeLeft.min -= 1;
-          timeLeft.sec = 60;
-        }
+        timeLeft.now = Date.now();
         progressFight(myShip, enemy, timeLeft, callback);
-      }, 1000);
+      }, FIGHT_RESOLUTION_MS);
+  }
+
+  function TimeLeft() {
+    var now = Date.now();
+    this.now = now;
+    this.start = now;
+    this.end = now + MAX_FIGHT_TICKS*1000;
+  }
+  TimeLeft.prototype.min = function() {
+    var d = (this.end - this.now)/1000;
+    return Math.floor(d/60);
+  }
+  TimeLeft.prototype.sec = function() {
+    var d = (this.end - this.now)/1000;
+    return Math.round(d - this.min()*60);
   }
   </script>
   <script>
@@ -240,7 +266,9 @@
         enemy.addRoom(new ReactorRoom(enemy.maxRoomId));
         enemy.addRoom(new BedRoom(enemy.maxRoomId));
         $scope.enemy = enemy;
-        $scope.timeLeft = {"min": 1, "sec": 30};
+        $scope.timeLeft = new TimeLeft();
+        resetAllRoomsTimestamps(myShip);
+        resetAllRoomsTimestamps(enemy);
         $scope.mode = $scope.FIGHT_MODE;
 
         setTimeout(function() {
@@ -248,7 +276,7 @@
               $scope.mode = $scope.GARAGE_MODE;
             });
             $scope.$apply();
-          }, 1000);
+          }, FIGHT_RESOLUTION_MS);
       };
 
 
@@ -265,7 +293,7 @@
     <div class="row">
       <div class="span8" style="text-align:center;"> 
         <a ng-if="mode==GARAGE_MODE" id="fight-button" ng-click="fight()" href="#">Fight</a>
-        <span ng-if="mode==FIGHT_MODE">The battle will finish in draw in {{timeLeft.min}}:{{timeLeft.sec}}</span>
+        <span ng-if="mode==FIGHT_MODE">The battle will finish in draw in {{timeLeft.min()}}:{{timeLeft.sec()}}</span>
       </div>
     </div>
     <div class="row">
@@ -273,7 +301,7 @@
       <h2>Your ship</h2>
       <div id="you">
         <ul>
-          <li>Ship size: {{ $myShip.maxRooms }}</li>
+          <li>Ship size: {{ myShip.rooms.length }}</li>
           <li>Resources: {{ myShip.resources}}</li>
           <li>Rooms:
             <ul ng-repeat="room in myShip.rooms">
@@ -283,6 +311,13 @@
                     <div class="progressFrame" style="border-color:red;">
                       <div class="progressFill" style="width:{{room.hp*100/room.maxHp}}%;background-color:red;">
                         Hp: {{room.hp}}/{{room.maxHp}}
+                      </div>
+                    </div>
+                  </li>
+                  <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
+                    <div class="progressFrame" style="border-color:#CCCC00;">
+                      <div class="progressFill" style="width:{{(timeLeft.now - room.lastShotAt)*100/(50/room.fireRate*1000)}}%;background-color:#CCCC00;">
+                        Next shot 
                       </div>
                     </div>
                   </li>
@@ -309,6 +344,7 @@
       <h2 ng-if="mode==FIGHT_MODE">Enemy</h2>
       <div ng-if="mode==FIGHT_MODE" id="enemy">
         <ul>
+          <li>Ship size: {{ myShip.rooms.length }}</li>
           <li>Resources: {{ enemy.resources}}</li>
           <li>Rooms:
             <ul ng-repeat="room in enemy.rooms">
@@ -318,6 +354,13 @@
                     <div class="progressFrame" style="border-color:red;">
                       <div class="progressFill" style="width:{{room.hp*100/room.maxHp}}%;background-color:red;">
                         Hp: {{room.hp}}/{{room.maxHp}}
+                      </div>
+                    </div>
+                  </li>
+                  <li ng-switch-when="Laser">
+                    <div class="progressFrame" style="border-color:#CCCC00;">
+                      <div class="progressFill" style="width:{{(timeLeft.now - room.lastShotAt)*100/(50/room.fireRate*1000)}}%;background-color:#CCCC00;">
+                        Next shot 
                       </div>
                     </div>
                   </li>
