@@ -1,8 +1,9 @@
-<html>
+<html ng-app="gameApp">
 <head>
   <title>Spaceships Prototype</title>
   <script src="https://code.jquery.com/jquery-3.3.1.min.js" ></script>
   <link rel="stylesheet" href="http://getbootstrap.com/2.0.4/assets/css/bootstrap-responsive.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
   <script>
   var GARAGE_MODE = 0;
   var FIGHT_MODE = 1;
@@ -32,26 +33,6 @@
       }
   }
 
-  function renderEasy(obj, includeOnly, exclude) {
-    out = "";
-    for (var i in obj) {
-      if (obj.hasOwnProperty(i)) {
-        if (includeOnly !== undefined && !includeOnly.has(i)) {
-          continue;
-        }
-        if (exclude !== undefined && exclude.has(i)) {
-          continue;
-        }
-        if (!(obj[i] instanceof Object)) {
-          out += "<li>" + i + ": " + obj[i] + "</li>";
-        } else if (obj[i].render) {
-          out += "<li>" + i + ": " + obj[i].render() + "</li>";
-        }
-      }
-    }
-    return out;
-  }
-
   function Ship() {
     this.rooms = [];
     this.maxRooms = 3;
@@ -63,14 +44,6 @@
   function Upgrade(minerals, gas, improvements) {
     this.cost = {"minerals": minerals, "gas": gas};
     this.improvements = improvements;
-  }
-  Upgrade.prototype.render = function() {
-    out = "<ul>";
-    out += renderEasy(this);
-    out += "<li>Cost: <ul>" + renderEasy(this.cost) + "</ul></li>";
-    out += "<li>Improvements (delta): <ul>" + renderEasy(this.improvements) + "</ul></li>";
-    out += "</ul>";
-    return out;
   }
 
   function LaserRoom(id) {
@@ -84,37 +57,6 @@
     this.fireRate = 10;
     this.upgrade = new Upgrade(100, 0, {damage: 1});
   }
-  LaserRoom.prototype.render = function(ship, enemy) {
-    out = "<ul>";
-    if (mode == FIGHT_MODE) {
-        out += renderEasy(this, undefined, new Set(["upgrade"]));
-      if (ship.isMine) {
-        out += `<li>Target: <select class="target" id="${this.id}_target">`;
-        for (k in enemy.rooms) {
-          var target = enemy.rooms[k];
-          if (target.hp <= 0) {
-            continue;
-          }
-          var selected = "";
-          if (this.targetId == target.id) {
-            selected = "selected";
-          }
-          out += `<option ${selected} value="${target.id}">${target.title}-${target.id}</option>`;
-        }
-        out += "</select></li>";
-      }
-    } else {
-      if (ship.isMine && mode == GARAGE_MODE) {
-        out += renderEasy(this);
-        if (mode == GARAGE_MODE && this.upgrade && this.upgrade.cost && ship.haveEnoughResources(this.upgrade.cost)) {
-          out += "<li><a href='#' class='upgrade' id='upgrade_" + this.id + "'>Upgrade</a></li>";
-        }
-      }
-    }
-    out += "</ul>";
-    return out;
-  }
-
   function ReactorRoom(id) {
     this.id = id;
     this.hp = 10*HP_UNIT;
@@ -124,22 +66,6 @@
     this.upgrade = new Upgrade(100, 100, {energyMax: 1});
   }
 
-  ReactorRoom.prototype.render = function(ship) {
-    out = "<ul>";
-    if (ship.isMine) {
-      out += renderEasy(this);
-    } else {
-      out += renderEasy(this, undefined, new Set(["upgrade"]));
-    }
-    if (ship.isMine && mode == GARAGE_MODE) {
-      if (mode == GARAGE_MODE && this.upgrade && this.upgrade.cost && ship.haveEnoughResources(this.upgrade.cost)) {
-        out += "<li><a href='#' class='upgrade' id='upgrade_" + this.id + "'>Upgrade</a></li>";
-      }
-    }
-    out += "</ul>";
-    return out;
-  }
-
   function BedRoom(id) {
     this.id = id;
     this.hp = HP_UNIT;
@@ -147,49 +73,10 @@
     this.title = "Bedroom";
     this.capacity = 1;
   }
-  BedRoom.prototype.render = function() {
-    out = "<ul>";
-    out += renderEasy(this);
-    out += "</ul>";
-    return out;
-  }
 
   Ship.prototype.addRoom = function(room) {
     this.rooms[this.maxRoomId] = room;
     this.maxRoomId++;
-  }
-  function renderMyShip(ship, enemy) {
-    out = "<ul>";
-    out += renderEasy(ship);
-    out += `<li>Resources: <ul>${renderEasy(ship.resources)}</ul></li>`;
-    out += "</ul>";
-    out += "Rooms:<br /> <ul>";
-    for (id in ship.rooms) {
-      var room = ship.rooms[id];
-      out += `
-        <li>${room.title}<ul>
-          ${room.render(ship, enemy)}
-        </li></ul>`;
-    }
-    out += "</ul>";
-    return out;
-  }
-
-  function renderEnemyShip(ship) {
-    out = "<ul>";
-    out += renderEasy(ship);
-    out += `<li>Resources: <ul>${renderEasy(ship.resources)}</ul></li>`;
-    out += "</ul>";
-    out += "Rooms:<br /> <ul>";
-    for (id in ship.rooms) {
-      var room = ship.rooms[id];
-      out += `
-      <li>${room.title}<ul>
-        ${room.render(ship)}
-      </li></ul>`;
-    }
-    out += "</ul>";
-    return out;
   }
 
   Ship.prototype.haveEnoughResources = function(cost) {
@@ -201,40 +88,7 @@
       return true;
   }
 
-
-  var myShip = new Ship();
-  myShip.isMine = true;
-  myShip.addRoom(new LaserRoom(myShip.maxRoomId));
-  myShip.addRoom(new ReactorRoom(myShip.maxRoomId));
-  myShip.addRoom(new BedRoom(myShip.maxRoomId));
-
- // onload aka main
-  $(function() {
-    $("#you").html(renderMyShip(myShip));
-
-    $("#you").on('click', 'a.upgrade', function(){
-      id = parseInt($(this).attr("id").split("_")[1]);
-      if (!doUpgrade(myShip, myShip.rooms[id])) {
-        alert("Could not do the upgrade!");
-      } else {
-        alert("Success");
-        $("#you").html(renderMyShip(myShip));
-      }
-    });
-
-    $("#you").on('change', 'select.target', function(){
-      id = parseInt($(this).attr("id").split("_")[0]);
-      myShip.rooms[id].targetId = $(this).val();
-      $("#you").html(renderMyShip(myShip));
-    });
-
-    
-    setInterval(function() {
-        recoverHp(myShip);
-      }, 1000);
-  });
-
-  function recoverHp(myShip) {
+  function recoverHp(myShip, mode) {
     if (mode != GARAGE_MODE) {
       return;
     }
@@ -242,7 +96,6 @@
     for (var k in myShip.rooms) {
       var room = myShip.rooms[k];
       if (room.hp < room.maxHp) {
-        recovered = true;
         room.hp += HP_UNIT;
         if (room.hp > room.maxHp) {
           room.hp = room.maxHp;
@@ -250,26 +103,8 @@
         break;
       }
     }
-    if (recovered) {
-      $("#you").html(renderMyShip(myShip));
-    }
   }
 
-  function fight() {
-    $("#enemy-title").show();
-    mode = FIGHT_MODE;
-    var enemy = new Ship();
-    enemy.addRoom(new LaserRoom(enemy.maxRoomId));
-    enemy.addRoom(new ReactorRoom(enemy.maxRoomId));
-    enemy.addRoom(new BedRoom(enemy.maxRoomId));
-    $("#enemy").html(renderEnemyShip(enemy));
-
-    $("#fight-button").hide();
-    $("#you").html(renderMyShip(myShip, enemy));
-    setTimeout(function() {
-        progressFight(myShip, enemy, 0);
-      }, 1000);
-  }
 
   function getShipTargetsDamage(ship) {
     var myDamage = {};
@@ -299,6 +134,7 @@
     for (var k in enemy.rooms) {
       if (enemy.rooms[k].hp > 0) {
         newTarget = enemy.rooms[k].id;
+        break;
       }
     }
     for (var k in ship.rooms) {
@@ -322,18 +158,11 @@
     }
   }
 
-  function finishFight() {
-      mode = GARAGE_MODE;
-      $("#enemy-title").hide();
-      $("#fight-button").show();
-      $("#enemy").html("");
-      $("#you").html(renderMyShip(myShip));
-  }
 
-  function progressFight(myShip, enemy, timeElapsed) {
+  function progressFight(myShip, enemy, timeElapsed, callback) {
     if (timeElapsed >= MAX_FIGHT_TICKS) {
       alert("Draw due to timeout!");
-      finishFight();
+      callback();
       return;
     }
     // TODO: This is biased towards the damage from my ship, it shouldn't be.
@@ -346,42 +175,132 @@
       for (type in enemy.resources) {
         myShip.resources[type] += enemy.resources[type];
       }
-      finishFight();
+      callback();
       return;
     }
     if (checkDead(myShip)) {
       alert("You lost!");
-      finishFight();
+      callback();
       return;
     }
     setNewTargetsIfNeeded(myShip, enemy);
     setNewTargetsIfNeeded(enemy, myShip);
 
-    $("#enemy").html(renderEnemyShip(enemy));
-    $("#you").html(renderMyShip(myShip, enemy));
-
     console.log("Tick");
     setTimeout(function() {
-        progressFight(myShip, enemy, timeElapsed + 1);
+        progressFight(myShip, enemy, timeElapsed + 1, callback);
       }, 1000);
   }
   </script>
+  <script>
+  var app = angular.module("gameApp", []);
+  app.controller("appController",
+    function($scope, $timeout) {
+      $scope.GARAGE_MODE = GARAGE_MODE;
+      $scope.FIGHT_MODE = FIGHT_MODE;
+
+      var myShip = new Ship();
+      myShip.isMine = true;
+      myShip.addRoom(new LaserRoom(myShip.maxRoomId));
+      myShip.addRoom(new ReactorRoom(myShip.maxRoomId));
+      myShip.addRoom(new BedRoom(myShip.maxRoomId));
+
+      $scope.myShip = myShip;
+      $scope.mode = GARAGE_MODE;
+
+      // onload aka main
+      $scope.upgrade = function(id) {
+        if (!doUpgrade(myShip, myShip.rooms[id])) {
+          alert("Could not do the upgrade!");
+        } else {
+          alert("Success");
+        }
+      };
+
+      $scope.fight = function() {
+        var enemy = new Ship();
+        enemy.addRoom(new LaserRoom(enemy.maxRoomId));
+        enemy.addRoom(new ReactorRoom(enemy.maxRoomId));
+        enemy.addRoom(new BedRoom(enemy.maxRoomId));
+        $scope.enemy = enemy;
+        $scope.mode = $scope.FIGHT_MODE;
+
+        setTimeout(function() {
+            progressFight(myShip, enemy, 0, function() {
+              $scope.mode = $scope.GARAGE_MODE;
+            });
+            $scope.$apply();
+          }, 1000);
+      };
+
+
+        
+      setInterval(function() {
+          recoverHp(myShip, $scope.mode);
+          $scope.$apply();
+        }, 1000);
+    });
+  </script>
 </head>
-<body>
+<body ng-controller="appController">
   <div class="container">
     <div class="row">
       <div class="span4">
-        <a id="fight-button" href="#" onclick="fight()">Fight</a>
+        <a ng-if="mode==GARAGE_MODE" id="fight-button" ng-click="fight()" href="#">Fight</a>
+        <span ng-if="mode==FIGHT_MODE">1:30</span>
       </div>
     </div>
     <div class="row">
     <div class="span4">
       <h2>Your ship</h2>
-      <div id="you"></div>
+      <div id="you">
+        <ul>
+          <li>Ship size: {{ $myShip.maxRooms }}</li>
+          <li>Resources: {{ myShip.resources}}</li>
+          <li>Rooms:
+            <ul ng-repeat="room in myShip.rooms">
+              <li ng-switch on="room.title">{{room.title}}
+                <ul>
+                  <li>Hp: {{room.hp}} out of {{room.maxHp}}</li>
+                  <li ng-switch-when="Laser">Damage: {{room.damage}}</li>
+                  <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
+                  <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
+                    <select ng-model="room.targetId" class="target" ng-init="room.targetId='0'">
+                      <option ng-repeat="enemyRoom in enemy.rooms" value="{{enemyRoom.id}}" ng-selected="room.targetId==enemyRoom.id">{{enemyRoom.title}}-{{enemyRoom.id}}</options>
+                    </select>
+                  </li>
+                  <li ng-switch-when="Reactor">Max energy output: {{room.energyMax}}</li>
+                  <li ng-if="mode==GARAGE_MODE && room.upgrade">
+                    <a ng-if="myShip.haveEnoughResources(room.upgrade.cost)" href="#" id="updrade_{{room.id}}" ng-click="upgrade(room.id)">Upgrade</a>
+                    <span ng-if="!myShip.haveEnoughResources(room.upgrade.cost)">Upgrade</span>:
+                    {{room.upgrade}}</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
     </div>
     <div class="span4">
-      <h2 id="enemy-title" style="display:none;">Enemy</h2>
-      <div id="enemy"></div>
+      <h2 ng-if="mode==FIGHT_MODE">Enemy</h2>
+      <div ng-if="mode==FIGHT_MODE" id="enemy">
+        <ul>
+          <li>Resources: {{ enemy.resources}}</li>
+          <li>Rooms:
+            <ul ng-repeat="room in enemy.rooms">
+              <li ng-switch on="room.title">{{room.title}}
+                <ul>
+                  <li>Hp: {{room.hp}} out of {{room.maxHp}}</li>
+                  <li ng-switch-when="Laser">Damage: {{room.damage}}</li>
+                  <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
+                  <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">Targeting: {{myShip.rooms[room.targetId].title}}-{{room.targetId}}</li>
+                  <li ng-switch-when="Reactor">Max energy output: {{room.energyMax}}</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
     </div>
     </div>
   </div>
