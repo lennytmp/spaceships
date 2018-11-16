@@ -171,8 +171,8 @@
   }
 
 
-  function progressFight(myShip, enemy, timeElapsed, callback) {
-    if (timeElapsed >= MAX_FIGHT_TICKS) {
+  function progressFight(myShip, enemy, timeLeft, callback) {
+    if (timeLeft.min <= 0 && timeLeft.sec <= 0) {
       alert("Draw due to timeout!");
       callback();
       return;
@@ -200,7 +200,12 @@
 
     console.log("Tick");
     setTimeout(function() {
-        progressFight(myShip, enemy, timeElapsed + 1, callback);
+        timeLeft.sec -= 1;
+        if (timeLeft.sec < 0) {
+          timeLeft.min -= 1;
+          timeLeft.sec = 60;
+        }
+        progressFight(myShip, enemy, timeLeft, callback);
       }, 1000);
   }
   </script>
@@ -235,10 +240,11 @@
         enemy.addRoom(new ReactorRoom(enemy.maxRoomId));
         enemy.addRoom(new BedRoom(enemy.maxRoomId));
         $scope.enemy = enemy;
+        $scope.timeLeft = {"min": 1, "sec": 30};
         $scope.mode = $scope.FIGHT_MODE;
 
         setTimeout(function() {
-            progressFight(myShip, enemy, 0, function() {
+            progressFight(myShip, enemy, $scope.timeLeft, function() {
               $scope.mode = $scope.GARAGE_MODE;
             });
             $scope.$apply();
@@ -257,9 +263,9 @@
 <body ng-controller="appController">
   <div class="container">
     <div class="row">
-      <div class="span4">
+      <div class="span8" style="text-align:center;"> 
         <a ng-if="mode==GARAGE_MODE" id="fight-button" ng-click="fight()" href="#">Fight</a>
-        <span ng-if="mode==FIGHT_MODE">1:30</span>
+        <span ng-if="mode==FIGHT_MODE">The battle will finish in draw in {{timeLeft.min}}:{{timeLeft.sec}}</span>
       </div>
     </div>
     <div class="row">
