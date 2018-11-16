@@ -4,6 +4,18 @@
   <script src="https://code.jquery.com/jquery-3.3.1.min.js" ></script>
   <link rel="stylesheet" href="http://getbootstrap.com/2.0.4/assets/css/bootstrap-responsive.css">
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+  <style>
+    .progressFrame {
+      height: 20px;
+      width: 100px;
+      border: 1px solid;
+    }
+    .progressFill {
+      height: 20px;
+      white-space: nowrap;
+      text-align: center;
+    }
+  </style>
   <script>
   var GARAGE_MODE = 0;
   var FIGHT_MODE = 1;
@@ -259,9 +271,15 @@
           <li>Resources: {{ myShip.resources}}</li>
           <li>Rooms:
             <ul ng-repeat="room in myShip.rooms">
-              <li ng-switch on="room.title">{{room.title}}
+              <li ng-switch on="room.title">{{room.title}}-{{room.id}}
                 <ul>
-                  <li>Hp: {{room.hp}} out of {{room.maxHp}}</li>
+                  <li>
+                    <div class="progressFrame" style="border-color:red;">
+                      <div class="progressFill" style="width:{{room.hp*100/room.maxHp}}%;background-color:red;">
+                        Hp: {{room.hp}}/{{room.maxHp}}
+                      </div>
+                    </div>
+                  </li>
                   <li ng-switch-when="Laser">Damage: {{room.damage}}</li>
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
@@ -288,9 +306,15 @@
           <li>Resources: {{ enemy.resources}}</li>
           <li>Rooms:
             <ul ng-repeat="room in enemy.rooms">
-              <li ng-switch on="room.title">{{room.title}}
+              <li ng-switch on="room.title">{{room.title}}-{{room.id}}
                 <ul>
-                  <li>Hp: {{room.hp}} out of {{room.maxHp}}</li>
+                  <li>
+                    <div class="progressFrame" style="border-color:red;">
+                      <div class="progressFill" style="width:{{room.hp*100/room.maxHp}}%;background-color:red;">
+                        Hp: {{room.hp}}/{{room.maxHp}}
+                      </div>
+                    </div>
+                  </li>
                   <li ng-switch-when="Laser">Damage: {{room.damage}}</li>
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">Targeting: {{myShip.rooms[room.targetId].title}}-{{room.targetId}}</li>
