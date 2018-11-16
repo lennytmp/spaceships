@@ -138,6 +138,9 @@
         if (room.lastShotAt > now - (50/room.fireRate)*1000) {
           continue;
         }
+        if (room.hp <= 0) {
+          continue;
+        }
         if (myDamage[room.targetId] === undefined) {
           myDamage[room.targetId] = 0;
         }
@@ -314,14 +317,14 @@
                       </div>
                     </div>
                   </li>
-                  <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
+                  <li ng-if="mode==FIGHT_MODE && room.hp > 0" ng-switch-when="Laser">
                     <div class="progressFrame" style="border-color:#CCCC00;">
                       <div class="progressFill" style="width:{{(timeLeft.now - room.lastShotAt)*100/(50/room.fireRate*1000)}}%;background-color:#CCCC00;">
                         Next shot 
                       </div>
                     </div>
                   </li>
-                  <li ng-switch-when="Laser">Damage: {{room.damage}}</li>
+                  <li ng-switch-when="Laser">Max damage: {{room.damage}}</li>
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
                     <select ng-model="room.targetId" class="target" ng-init="room.targetId='0'">
@@ -357,14 +360,14 @@
                       </div>
                     </div>
                   </li>
-                  <li ng-switch-when="Laser">
+                  <li ng-if="room.hp > 0" ng-switch-when="Laser">
                     <div class="progressFrame" style="border-color:#CCCC00;">
                       <div class="progressFill" style="width:{{(timeLeft.now - room.lastShotAt)*100/(50/room.fireRate*1000)}}%;background-color:#CCCC00;">
                         Next shot 
                       </div>
                     </div>
                   </li>
-                  <li ng-switch-when="Laser">Damage: {{room.damage}}</li>
+                  <li ng-switch-when="Laser">Max damage: {{room.damage}}</li>
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">Targeting: {{myShip.rooms[room.targetId].title}}-{{room.targetId}}</li>
                   <li ng-switch-when="Reactor">Max energy output: {{room.energyMax}}</li>
