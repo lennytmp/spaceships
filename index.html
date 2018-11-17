@@ -105,8 +105,7 @@
     this.improvements = improvements;
   }
 
-  function LaserRoom(id) {
-    this.id = id;
+  function LaserRoom() {
     this.title = "Laser";
     this.hp = 3*HP_UNIT;
     this.maxHp = this.hp;
@@ -116,8 +115,7 @@
     this.fireRate = 10;
     this.upgrade = new Upgrade(100, 0, {fireRate: 1});
   }
-  function ReactorRoom(id) {
-    this.id = id;
+  function ReactorRoom() {
     this.hp = 3*HP_UNIT;
     this.maxHp = this.hp;
     this.title = "Reactor";
@@ -125,8 +123,7 @@
     this.upgrade = new Upgrade(100, 100, {energyMax: 1});
   }
 
-  function BedRoom(id) {
-    this.id = id;
+  function BedRoom() {
     this.hp = HP_UNIT;
     this.maxHp = this.hp;
     this.title = "Bedroom";
@@ -141,13 +138,13 @@
     var r;
     switch (room.title) {
       case 'Laser':
-        r = new LaserRoom(this.maxRoomId);
+        r = new LaserRoom();
         break;
       case 'Bedroom':
-        r = new BedRoom(this.maxRoomId);
+        r = new BedRoom();
         break;
       case 'Reactor':
-        r = new ReactorRoom(this.maxRoomId);
+        r = new ReactorRoom();
         break;
     }
     if (r === undefined) {
@@ -236,7 +233,7 @@
     var newTarget;
     for (var k in enemy.rooms) {
       if (enemy.rooms[k].hp > 0) {
-        newTarget = enemy.rooms[k].id;
+        newTarget = k;
         break;
       }
     }
@@ -320,18 +317,18 @@
 
       var myShip = new Ship();
       myShip.isMine = true;
-      myShip.addRoom(new LaserRoom(myShip.maxRoomId));
-      myShip.addRoom(new ReactorRoom(myShip.maxRoomId));
-      myShip.addRoom(new BedRoom(myShip.maxRoomId));
+      myShip.addRoom(new LaserRoom());
+      myShip.addRoom(new ReactorRoom());
+      myShip.addRoom(new BedRoom());
 
       $scope.myShip = myShip;
       $scope.mode = GARAGE_MODE;
 
       $scope.fight = function() {
         var enemy = new Ship();
-        enemy.addRoom(new LaserRoom(enemy.maxRoomId));
-        enemy.addRoom(new ReactorRoom(enemy.maxRoomId));
-        enemy.addRoom(new BedRoom(enemy.maxRoomId));
+        enemy.addRoom(new LaserRoom());
+        enemy.addRoom(new ReactorRoom());
+        enemy.addRoom(new BedRoom());
         $scope.enemy = enemy;
         $scope.timeLeft = new TimeLeft();
         resetAllRoomsTimestamps(myShip);
@@ -414,8 +411,8 @@
           <li>Max rooms: {{ myShip.maxRooms}}</li>
           <li ng-if="mode==GARAGE_MODE"><upgrade entity="myShip" ship="myShip"/></li>
           <li>Rooms:
-            <ul ng-repeat="room in myShip.rooms">
-              <li ng-switch on="room.title">{{room.title}}-{{room.id}}
+            <ul ng-repeat="(roomId, room) in myShip.rooms">
+              <li ng-switch on="room.title">{{room.title}}-{{roomId}}
                 <ul>
                   <li>
                     <progress-bar complete="room.hp" total="room.maxHp"
@@ -430,7 +427,10 @@
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
                     <select ng-model="room.targetId" class="target" ng-init="room.targetId='0'">
-                      <option ng-repeat="enemyRoom in enemy.rooms" value="{{enemyRoom.id}}" ng-selected="room.targetId==enemyRoom.id">{{enemyRoom.title}}-{{enemyRoom.id}}</options>
+                      <option ng-repeat="(enemyRoomId, enemyRoom) in enemy.rooms"
+                        value="{{enemyRoomId}}"
+                        ng-selected="room.targetId==enemyRoomId">
+                        {{enemyRoom.title}}-{{enemyRoomId}}</options>
                     </select>
                   </li>
                   <li ng-switch-when="Reactor">Max energy output: {{room.energyMax}}</li>
@@ -460,8 +460,8 @@
           <li>Resources: {{ enemy.resources}}</li>
           <li>Level: {{ enemy.level}}</li>
           <li>Rooms:
-            <ul ng-repeat="room in enemy.rooms">
-              <li ng-switch on="room.title">{{room.title}}-{{room.id}}
+            <ul ng-repeat="(roomId, room) in enemy.rooms">
+              <li ng-switch on="room.title">{{room.title}}-{{roomId}}
                 <ul>
                   <li>
                     <progress-bar complete="room.hp" total="room.maxHp"
