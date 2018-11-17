@@ -25,6 +25,25 @@
 
   var mode = GARAGE_MODE;
 
+  var roomsByShipLevel = [
+    {
+      'Laser': 1,
+      'Reactor': 1,
+      'Bedroom': 1
+    },
+    {
+      'Laser': 3,
+      'Reactor': 1,
+      'Bedroom': 1
+    }
+  ];
+
+  var newRoomCosts = {
+    'Laser': {'minerals': 300, 'gas': 300},
+    'Reactor': {'minerals': 10, 'gas': 300},
+    'Bedroom': {'minerals': 50, 'gas': 0},
+  }
+
   function doUpgrade(myShip, upgrade, entity) {
     if (!upgrade.cost || !myShip.haveEnoughResources(upgrade.cost)) {
       return false;
@@ -36,7 +55,19 @@
     for (var resType in upgrade.cost) {
       upgrade.cost[resType] *= 2;
     }
+    myShip.newRoomOptions = myShip.getNewRoomOptions();
     return true;
+  }
+
+  function Ship() {
+    this.rooms = [];
+    this.level = 0;
+    this.maxRooms = 3;
+    this.resources = {"minerals": 100, "gas": 100};
+    this.maxRoomId = 0;
+    this.isMine = false;
+    this.upgrade = new Upgrade(400, 0, {maxRooms: 2, level: 1});
+    this.newRoomOptions = this.getNewRoomOptions();
   }
 
   Ship.prototype.chargeCost = function(cost) {
@@ -45,14 +76,29 @@
       }
   }
 
-  function Ship() {
-    this.rooms = [];
-    this.maxRooms = 3;
-    this.resources = {"minerals": 100, "gas": 100};
-    this.maxRoomId = 0;
-    this.isMine = false;
-    this.upgrade = new Upgrade(4, 0, {maxRooms: 2});
+  Ship.prototype.getNewRoomOptions = function() {
+    var existingRooms = {};
+    for (id in this.rooms) {
+      var title = this.rooms[id].title;
+      if (existingRooms[title] === undefined) {
+        existingRooms[title] = 1;
+      } else {
+        existingRooms[title] += 1;
+      }
+    }
+    var available = roomsByShipLevel[this.level];
+    var result = [];
+    for (var title in available) {
+      if (existingRooms[title] !== undefined) {
+        var leftToBuild = available[title] - existingRooms[title];
+      }
+      if (leftToBuild > 0) {
+        result.push({'title': title, 'cost': newRoomCosts[title]});
+      }
+    }
+    return result;
   }
+
 
   function Upgrade(minerals, gas, improvements) {
     this.cost = {"minerals": minerals, "gas": gas};
@@ -87,9 +133,35 @@
     this.capacity = 1;
   }
 
+  Ship.prototype.buyRoom = function(room) {
+    if (!room.cost || !this.haveEnoughResources(room.cost)) {
+      return false;
+    }
+    this.chargeCost(room.cost);
+    var r;
+    switch (room.title) {
+      case 'Laser':
+        r = new LaserRoom(this.maxRoomId);
+        break;
+      case 'Bedroom':
+        r = new BedRoom(this.maxRoomId);
+        break;
+      case 'Reactor':
+        r = new ReactorRoom(this.maxRoomId);
+        break;
+    }
+    if (r === undefined) {
+      return false;
+    }
+    this.addRoom(r);
+    return true;
+
+  }
+
   Ship.prototype.addRoom = function(room) {
     this.rooms[this.maxRoomId] = room;
     this.maxRoomId++;
+    this.newRoomOptions = this.getNewRoomOptions();
   }
 
   Ship.prototype.haveEnoughResources = function(cost) {
@@ -275,7 +347,7 @@
       };
 
 
-        
+
       setInterval(function() {
           recoverHp(myShip, $scope.mode);
           $scope.$apply();
@@ -289,7 +361,7 @@
           ship: '=',
         },
         template: `
-          <a ng-if="ship.haveEnoughResources(entity.upgrade.cost)" href="#" id="updrade_{{entity.id}}" ng-click="upgrade(entity)">Upgrade</a>
+          <a ng-if="ship.haveEnoughResources(entity.upgrade.cost)" href="#" ng-click="upgrade(entity)">Upgrade</a>
           <span ng-if="!ship.haveEnoughResources(entity.upgrade.cost)">Upgrade</span>:
           {{entity.upgrade}}
         `,
@@ -327,7 +399,7 @@
 <body ng-controller="appController">
   <div class="container">
     <div class="row">
-      <div class="span8" style="text-align:center;"> 
+      <div class="span8" style="text-align:center;">
         <a ng-if="mode==GARAGE_MODE" id="fight-button" ng-click="fight()" href="#">Fight</a>
         <span ng-if="mode==FIGHT_MODE">The battle will finish in draw in {{timeLeft.min()}}:{{timeLeft.sec()}}</span>
       </div>
@@ -338,7 +410,8 @@
       <div id="you">
         <ul>
           <li>Resources: {{ myShip.resources}}</li>
-          <li>Ship size: {{ myShip.rooms.length }}</li>
+          <li>Level: {{ myShip.level}}</li>
+          <li>Max rooms: {{ myShip.maxRooms}}</li>
           <li ng-if="mode==GARAGE_MODE"><upgrade entity="myShip" ship="myShip"/></li>
           <li>Rooms:
             <ul ng-repeat="room in myShip.rooms">
@@ -368,6 +441,15 @@
               </li>
             </ul>
           </li>
+          <li ng-if="mode==GARAGE_MODE && myShip.maxRooms > myShip.rooms.length">
+            New rooms available:
+            <ul ng-repeat="room in myShip.newRoomOptions">
+              <li>
+                <a ng-if="myShip.haveEnoughResources(room.cost)" href="#" ng-click="myShip.buyRoom(room)">Buy {{room.title}}</a>
+                {{room}}
+              </li>
+            </ul>
+          </li>
         </ul>
       </div>
     </div>
@@ -375,8 +457,8 @@
       <h2 ng-if="mode==FIGHT_MODE">Enemy</h2>
       <div ng-if="mode==FIGHT_MODE" id="enemy">
         <ul>
-          <li>Ship size: {{ myShip.rooms.length }}</li>
           <li>Resources: {{ enemy.resources}}</li>
+          <li>Level: {{ enemy.level}}</li>
           <li>Rooms:
             <ul ng-repeat="room in enemy.rooms">
               <li ng-switch on="room.title">{{room.title}}-{{room.id}}
