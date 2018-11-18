@@ -22,6 +22,7 @@
   var HP_UNIT = 10;
   var MAX_FIGHT_TICKS = 90;
   var FIGHT_RESOLUTION_MS = 100;
+  var GOD_MODE = true;
 
   var mode = GARAGE_MODE;
 
@@ -162,6 +163,9 @@
   }
 
   Ship.prototype.haveEnoughResources = function(cost) {
+      if (GOD_MODE) {
+        return true;
+      }
       for (var resType in cost) {
         if (this.resources[resType] < cost[resType]) {
           return false;
