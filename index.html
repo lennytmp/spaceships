@@ -114,14 +114,17 @@
     this.targetId = 0;
     this.lastShotAt = 0;
     this.fireRate = 10;
+    this.energyDemand = 3;
+    this.energy = 0;
     this.upgrade = new Upgrade(100, 0, {fireRate: 1});
   }
   function ReactorRoom() {
     this.hp = 3*HP_UNIT;
     this.maxHp = this.hp;
     this.title = "Reactor";
-    this.energyMax = 3;
-    this.upgrade = new Upgrade(100, 100, {energyMax: 1});
+    this.maxEnergySupply = 3;
+    this.energySupply = this.maxEnergySupply;
+    this.upgrade = new Upgrade(100, 100, {maxEnergySupply: 1});
   }
 
   function BedRoom() {
@@ -202,6 +205,36 @@
   }
 
 
+  function redistributeEnergy(ship) {
+    var totalEnergySupply = 0;
+    var totalEnergyDemand = 0;
+    for (id in ship.rooms) {
+      var room = ship.rooms[id];
+      if (room.maxEnergySupply !== undefined) {
+        room.energySupply = Math.round(room.maxEnergySupply*room.hp/room.maxHp);
+        totalEnergySupply += room.energySupply;
+      }
+      if (room.energyDemand !== undefined) {
+        room.energy = 0;
+        totalEnergyDemand += room.energyDemand;
+      }
+    }
+    while (totalEnergySupply > 0 && totalEnergyDemand > 0) {
+      for (id in ship.rooms) {
+        var room = ship.rooms[id];
+        if (room.energyDemand !== undefined) {
+          room.energy += 1;
+          totalEnergySupply -= 1;
+          totalEnergyDemand -= 1;
+          if (totalEnergySupply == 0 || totalEnergyDemand == 0) {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+
   function getShipTargetsDamage(ship) {
     var myDamage = {};
     var now = Date.now();
@@ -270,6 +303,9 @@
       return;
     }
     // TODO: This is biased towards the damage from my ship, it shouldn't be.
+    // TODO: If the tab is not active - the timing can go wrong.
+    redistributeEnergy(myShip);
+    redistributeEnergy(enemy);
     enemyDamage = getShipTargetsDamage(myShip);
     myDamage = getShipTargetsDamage(enemy);
     applyDamage(enemy, enemyDamage);
@@ -337,6 +373,8 @@
         $scope.timeLeft = new TimeLeft();
         resetAllRoomsTimestamps(myShip);
         resetAllRoomsTimestamps(enemy);
+        redistributeEnergy(myShip);
+        redistributeEnergy(enemy);
         $scope.mode = $scope.FIGHT_MODE;
 
         setTimeout(function() {
@@ -427,6 +465,8 @@
                       total="50*1000/room.fireRate" color="#CCCC00"
                       text="Next shot" />
                   </li>
+                  <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">Energy: {{room.energy}}</li>
+                  <li ng-switch-when="Laser">Energy demand: {{room.energyDemand}}</li>
                   <li ng-switch-when="Laser">Max damage: {{room.damage}}</li>
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
@@ -437,7 +477,8 @@
                         {{enemyRoom.title}}-{{enemyRoomId}}</options>
                     </select>
                   </li>
-                  <li ng-switch-when="Reactor">Max energy output: {{room.energyMax}}</li>
+                  <li ng-switch-when="Reactor">Max energy output: {{room.maxEnergySupply}}</li>
+                  <li ng-switch-when="Reactor">Energy output: {{room.energySupply}}</li>
                   <li ng-if="mode==GARAGE_MODE && room.upgrade">
                     <upgrade entity="room" ship="myShip" />
                   </li>
@@ -476,10 +517,14 @@
                       total="50*1000/room.fireRate" color="#CCCC00"
                       text="Next shot" />
                   </li>
+                  <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">Energy: {{room.energy}}</li>
                   <li ng-switch-when="Laser">Max damage: {{room.damage}}</li>
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
+                  <li ng-switch-when="Laser">Energy demand: {{room.energyDemand}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">Targeting: {{myShip.rooms[room.targetId].title}}-{{room.targetId}}</li>
-                  <li ng-switch-when="Reactor">Max energy output: {{room.energyMax}}</li>
+
+                  <li ng-switch-when="Reactor">Max energy output: {{room.maxEnergySupply}}</li>
+                  <li ng-switch-when="Reactor">Energy output: {{room.energySupply}}</li>
                 </ul>
               </li>
             </ul>
