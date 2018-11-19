@@ -115,13 +115,20 @@
     this.lastShotAt = 0;
     this.fireRate = 10;
     this.energyDemand = 3;
-    this.energy = 0;
     this.upgrade = new Upgrade(100, 0, {fireRate: 1});
+
+    // Fight specific
+    this.energy = 0;
+    this.damage = 0;
+    this.reloadTime = 0;
   }
   LaserRoom.prototype.updateProperties = function() {
+    if (this.hp == 0) {
+      this.energy = 0;
+    }
     this.reloadTime = (50/this.fireRate)*1000;
     this.reloadTime *= this.energyDemand / this.energy;
-    this.damage = this.round(this.maxDamage*(this.hp/this.maxHp));
+    this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
   }
 
   function ReactorRoom() {
@@ -129,8 +136,10 @@
     this.maxHp = this.hp;
     this.title = "Reactor";
     this.maxEnergySupply = 3;
-    this.energySupply = this.maxEnergySupply;
     this.upgrade = new Upgrade(100, 100, {maxEnergySupply: 1});
+
+    // Fight specific
+    this.energySupply = 0;
   }
   ReactorRoom.prototype.updateProperties = function() {
     this.energySupply = Math.round(this.maxEnergySupply*(this.hp/this.maxHp));
@@ -219,6 +228,9 @@
     var totalEnergyDemand = 0;
     for (id in ship.rooms) {
       var room = ship.rooms[id];
+      if (room.hp == 0) {
+        continue;
+      }
       if (room.maxEnergySupply !== undefined) {
         totalEnergySupply += room.energySupply;
       }
@@ -230,13 +242,14 @@
     while (totalEnergySupply > 0 && totalEnergyDemand > 0) {
       for (id in ship.rooms) {
         var room = ship.rooms[id];
-        if (room.energyDemand !== undefined) {
-          room.energy += 1;
-          totalEnergySupply -= 1;
-          totalEnergyDemand -= 1;
-          if (totalEnergySupply == 0 || totalEnergyDemand == 0) {
-            break;
-          }
+        if (room.hp == 0 || room.energyDemand === undefined) {
+          continue;
+        }
+        room.energy += 1;
+        totalEnergySupply -= 1;
+        totalEnergyDemand -= 1;
+        if (totalEnergySupply == 0 || totalEnergyDemand == 0) {
+          break;
         }
       }
     }
@@ -484,7 +497,7 @@
                   </li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">Energy: {{room.energy}}</li>
                   <li ng-switch-when="Laser">Energy demand: {{room.energyDemand}}</li>
-                  <li ng-switch-when="Laser">Max damage: {{room.damage}}</li>
+                  <li ng-switch-when="Laser">Max damage: {{room.maxDamage}}</li>
                   <li ng-switch-when="Laser">Fire rate: {{room.fireRate}}</li>
                   <li ng-if="mode==FIGHT_MODE" ng-switch-when="Laser">
                     <select ng-model="room.targetId" class="target" ng-init="room.targetId='0'">
