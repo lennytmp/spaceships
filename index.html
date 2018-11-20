@@ -24,7 +24,7 @@
   var GARAGE_MODE = 0;
   var FIGHT_MODE = 1;
   var HP_UNIT = 10;
-  var MAX_FIGHT_TICKS = 90;
+  var MAX_FIGHT_TICKS = 30;
   var FIGHT_RESOLUTION_MS = 100;
   var GOD_MODE = true;
 
@@ -34,19 +34,16 @@
     {
       'Laser': 1,
       'Reactor': 1,
-      'Bedroom': 1
     },
     {
-      'Laser': 3,
-      'Reactor': 1,
-      'Bedroom': 1
+      'Laser': 2,
+      'Reactor': 2,
     }
   ];
 
   var newRoomCosts = {
     'Laser': {'minerals': 300, 'gas': 300},
     'Reactor': {'minerals': 10, 'gas': 300},
-    'Bedroom': {'minerals': 50, 'gas': 0},
   }
 
   function doUpgrade(myShip, upgrade, entity) {
@@ -67,11 +64,11 @@
   function Ship() {
     this.rooms = [];
     this.level = 0;
-    this.maxRooms = 3;
+    this.maxRooms = 2;
     this.resources = {"minerals": 100, "gas": 100};
     this.maxRoomId = 0;
     this.isMine = false;
-    this.upgrade = new Upgrade(400, 0, {maxRooms: 2, level: 1});
+    this.upgrade = new Upgrade(400, 0, {maxRooms: 1, level: 1});
     this.newRoomOptions = this.getNewRoomOptions();
   }
 
@@ -112,7 +109,7 @@
 
   function LaserRoom() {
     this.title = "Laser";
-    this.hp = 3*HP_UNIT;
+    this.hp = 2*HP_UNIT;
     this.maxHp = this.hp;
     this.maxDamage = HP_UNIT;
     this.targetId = 0;
@@ -138,7 +135,7 @@
   }
 
   function ReactorRoom() {
-    this.hp = 3*HP_UNIT;
+    this.hp = 2*HP_UNIT;
     this.maxHp = this.hp;
     this.title = "Reactor";
     this.maxEnergySupply = 3;
@@ -151,13 +148,6 @@
     this.energySupply = Math.round(this.maxEnergySupply*(this.hp/this.maxHp));
   }
 
-  function BedRoom() {
-    this.hp = HP_UNIT;
-    this.maxHp = this.hp;
-    this.title = "Bedroom";
-    this.capacity = 1;
-  }
-
   Ship.prototype.buyRoom = function(room) {
     if (!room.cost || !this.haveEnoughResources(room.cost)) {
       return false;
@@ -167,9 +157,6 @@
     switch (room.title) {
       case 'Laser':
         r = new LaserRoom();
-        break;
-      case 'Bedroom':
-        r = new BedRoom();
         break;
       case 'Reactor':
         r = new ReactorRoom();
@@ -395,7 +382,6 @@
       myShip.isMine = true;
       myShip.addRoom(new LaserRoom());
       myShip.addRoom(new ReactorRoom());
-      myShip.addRoom(new BedRoom());
 
       $scope.myShip = myShip;
       $scope.mode = GARAGE_MODE;
@@ -404,7 +390,6 @@
         var enemy = new Ship();
         enemy.addRoom(new LaserRoom());
         enemy.addRoom(new ReactorRoom());
-        enemy.addRoom(new BedRoom());
         $scope.enemy = enemy;
         $scope.timeLeft = new TimeLeft();
         resetAllRoomsTimestamps(myShip);
