@@ -415,7 +415,7 @@
       }
     }
     for (resType in resources) {
-      ship.resources[resType] = Math.round(rand_bm(0, maxRes*2, 1.1));
+      ship.resources[resType] = Math.round(rand_bm(0, (maxRes-100)*2, 1));
     }
     console.log(JSON.stringify(ship.resources));
     var options = ship.getIvenstmentOptions();
@@ -425,7 +425,7 @@
         options = ship.getIvenstmentOptions();
     }
     for (resType in resources) {
-      ship.resources[resType] = Math.round(Math.random()*maxRes*2);
+      ship.resources[resType] = Math.round(rand_bm(80*(ship.level+1), 140*(ship.level+1), 1));
     }
   }
 
