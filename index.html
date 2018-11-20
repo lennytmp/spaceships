@@ -24,7 +24,7 @@
   var GARAGE_MODE = 0;
   var FIGHT_MODE = 1;
   var HP_UNIT = 10;
-  var MAX_FIGHT_TICKS = 30;
+  var MAX_FIGHT_TICKS = 40;
   var FIGHT_RESOLUTION_MS = 100;
   var GOD_MODE = true;
 
@@ -46,21 +46,6 @@
     'Reactor': {'minerals': 10, 'gas': 300},
   }
 
-  function doUpgrade(myShip, upgrade, entity) {
-    if (!upgrade.cost || !myShip.haveEnoughResources(upgrade.cost)) {
-      return false;
-    }
-    myShip.chargeCost(upgrade.cost);
-    for (key in upgrade.improvements) {
-      entity[key] += upgrade.improvements[key];
-    }
-    for (var resType in upgrade.cost) {
-      upgrade.cost[resType] *= 2;
-    }
-    myShip.newRoomOptions = myShip.getNewRoomOptions();
-    return true;
-  }
-
   function Ship() {
     this.rooms = [];
     this.level = 0;
@@ -70,11 +55,28 @@
     this.isMine = false;
     this.upgrade = new Upgrade(400, 0, {maxRooms: 1, level: 1});
     this.newRoomOptions = this.getNewRoomOptions();
+    this.resourcesInvested = {"minerals": 0, "gas": 0};
+  }
+
+  Ship.prototype.doUpgrade =  function(upgrade, entity) {
+    if (!upgrade.cost || !this.haveEnoughResources(upgrade.cost)) {
+      return false;
+    }
+    this.chargeCost(upgrade.cost);
+    for (key in upgrade.improvements) {
+      entity[key] += upgrade.improvements[key];
+    }
+    for (var resType in upgrade.cost) {
+      upgrade.cost[resType] *= 2;
+    }
+    this.newRoomOptions = this.getNewRoomOptions();
+    return true;
   }
 
   Ship.prototype.chargeCost = function(cost) {
       for (var resType in cost) {
         this.resources[resType] -= cost[resType];
+        this.resourcesInvested[resType] += cost[resType];
       }
   }
 
@@ -96,6 +98,35 @@
       }
       if (leftToBuild > 0) {
         result.push({'title': title, 'cost': newRoomCosts[title]});
+      }
+    }
+    return result;
+  }
+
+  Ship.prototype.getIvenstmentOptions = function() {
+    var result = [];
+    var me = this;
+    if (this.upgrade !== undefined && this.haveEnoughResources(this.upgrade.cost)) {
+      result.push({'cost': this.upgrade.cost, 'apply': function() {
+            me.doUpgrade(me.upgrade, me);
+      }});
+    }
+    var newRoomOptions = this.getNewRoomOptions();
+    for (var title in newRoomOptions) {
+      let option = newRoomOptions[title];
+      if (this.haveEnoughResources(option.cost)) {
+          result.push({'cost': option.cost, 'apply': function() {
+                  me.buyRoom(option);
+              }
+          });
+      }
+    }
+    for (var id in this.rooms) {
+      let room = this.rooms[id];
+      if (room.upgrade !== undefined && this.haveEnoughResources(room.upgrade.cost)) {
+        result.push({'cost': room.upgrade.cost, 'apply': function() {
+                me.doUpgrade(room.upgrade, room);
+        }});
       }
     }
     return result;
@@ -177,7 +208,7 @@
   }
 
   Ship.prototype.haveEnoughResources = function(cost) {
-      if (GOD_MODE) {
+      if (GOD_MODE && this.isMine) {
         return true;
       }
       for (var resType in cost) {
@@ -355,11 +386,33 @@
       }, FIGHT_RESOLUTION_MS);
   }
 
-  function TimeLeft() {
+  function investRandomly(ship, resources) {
+    var available = {};
+    var maxRes = 0;
+    for (resType in resources) {
+      if (maxRes < resources[resType]) {
+        maxRes = resources[resType];
+      }
+    }
+    for (resType in resources) {
+      ship.resources[resType] = Math.round(maxRes*Math.random()*5);
+    }
+    var options = ship.getIvenstmentOptions();
+    while (options.length > 0) {
+        var i = Math.max(0, Math.round(Math.random()*options.length - 1));
+        options[i].apply();
+        options = ship.getIvenstmentOptions();
+    }
+    for (resType in resources) {
+      ship.resources[resType] = Math.round(Math.random()*maxRes);
+    }
+  }
+
+  function TimeLeft(lvl) {
     var now = Date.now();
     this.now = now;
     this.start = now;
-    this.end = now + MAX_FIGHT_TICKS*1000;
+    this.end = now + MAX_FIGHT_TICKS*1000*(lvl*0.5+1);
   }
   TimeLeft.prototype.min = function() {
     var d = (this.end - this.now)/1000;
@@ -391,7 +444,8 @@
         enemy.addRoom(new LaserRoom());
         enemy.addRoom(new ReactorRoom());
         $scope.enemy = enemy;
-        $scope.timeLeft = new TimeLeft();
+        investRandomly(enemy, myShip.resourcesInvested);
+        $scope.timeLeft = new TimeLeft(Math.max(myShip.level, enemy.level));
         resetAllRoomsTimestamps(myShip);
         resetAllRoomsTimestamps(enemy);
         redistributeEnergy(myShip);
@@ -427,7 +481,7 @@
         `,
         controller: ['$scope', function UpgradeController($scope) {
           $scope.upgrade = function(entity) {
-            if (entity.upgrade && doUpgrade($scope.ship, entity.upgrade, entity)) {
+            if (entity.upgrade && $scope.ship.doUpgrade(entity.upgrade, entity)) {
               alert("Success");
             } else {
               alert("Could not perform the upgrade!");
