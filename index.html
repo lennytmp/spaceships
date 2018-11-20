@@ -140,12 +140,12 @@
 
   function LaserRoom() {
     this.title = "Laser";
-    this.hp = 2*HP_UNIT;
+    this.hp = HP_UNIT;
     this.maxHp = this.hp;
     this.maxDamage = HP_UNIT;
     this.targetId = 0;
     this.lastShotAt = 0;
-    this.maxFireRate = 10;
+    this.maxFireRate = 5;
     this.energyDemand = 3;
     this.upgrade = new Upgrade(100, 0, {maxFireRate: 1});
 
@@ -166,7 +166,7 @@
   }
 
   function ReactorRoom() {
-    this.hp = 2*HP_UNIT;
+    this.hp = HP_UNIT;
     this.maxHp = this.hp;
     this.title = "Reactor";
     this.maxEnergySupply = 3;
@@ -350,8 +350,13 @@
   }
 
 
-  function progressFight(myShip, enemy, timeLeft, callback) {
-    if (timeLeft.now > timeLeft.end) {
+  function progressFight(myShip, enemy, fightStatus, callback) {
+    if (fightStatus.mySurrender) {
+      alert("You lost!");
+      callback();
+      return;
+    }
+    if (fightStatus.now > fightStatus.end) {
       alert("Draw due to timeout!");
       callback();
       return;
@@ -381,9 +386,24 @@
     setNewTargetsIfNeeded(enemy, myShip);
 
     setTimeout(function() {
-        timeLeft.now = Date.now();
-        progressFight(myShip, enemy, timeLeft, callback);
+        fightStatus.now = Date.now();
+        progressFight(myShip, enemy, fightStatus, callback);
       }, FIGHT_RESOLUTION_MS);
+  }
+
+  // Kudos to https://stackoverflow.com/a/49434653
+  function rand_bm(min, max, skew) {
+      var u = 0, v = 0;
+      while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+      while(v === 0) v = Math.random();
+      let num = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+
+      num = num / 10.0 + 0.5; // Translate to 0 -> 1
+      if (num > 1 || num < 0) num = randn_bm(min, max, skew); // resample between 0 and 1 if out of range
+      num = Math.pow(num, skew); // Skew
+      num *= max - min; // Stretch to fill range
+      num += min; // offset to min
+      return num;
   }
 
   function investRandomly(ship, resources) {
@@ -395,8 +415,9 @@
       }
     }
     for (resType in resources) {
-      ship.resources[resType] = Math.round(maxRes*Math.random()*5);
+      ship.resources[resType] = Math.round(rand_bm(0, maxRes*2, 1.1));
     }
+    console.log(JSON.stringify(ship.resources));
     var options = ship.getIvenstmentOptions();
     while (options.length > 0) {
         var i = Math.max(0, Math.round(Math.random()*options.length - 1));
@@ -408,17 +429,18 @@
     }
   }
 
-  function TimeLeft(lvl) {
+  function FightStatus(lvl) {
     var now = Date.now();
     this.now = now;
     this.start = now;
     this.end = now + MAX_FIGHT_TICKS*1000*(lvl*0.5+1);
+    this.mySurrender = false;
   }
-  TimeLeft.prototype.min = function() {
+  FightStatus.prototype.min = function() {
     var d = (this.end - this.now)/1000;
     return Math.floor(d/60);
   }
-  TimeLeft.prototype.sec = function() {
+  FightStatus.prototype.sec = function() {
     var d = (this.end - this.now)/1000;
     return Math.round(d - this.min()*60);
   }
@@ -439,13 +461,17 @@
       $scope.myShip = myShip;
       $scope.mode = GARAGE_MODE;
 
+      $scope.surrender = function() {
+        $scope.fightStatus.mySurrender = true;
+      };
+
       $scope.fight = function() {
         var enemy = new Ship();
         enemy.addRoom(new LaserRoom());
         enemy.addRoom(new ReactorRoom());
         $scope.enemy = enemy;
         investRandomly(enemy, myShip.resourcesInvested);
-        $scope.timeLeft = new TimeLeft(Math.max(myShip.level, enemy.level));
+        $scope.fightStatus = new FightStatus(Math.max(myShip.level, enemy.level));
         resetAllRoomsTimestamps(myShip);
         resetAllRoomsTimestamps(enemy);
         redistributeEnergy(myShip);
@@ -453,7 +479,7 @@
         $scope.mode = $scope.FIGHT_MODE;
 
         setTimeout(function() {
-            progressFight(myShip, enemy, $scope.timeLeft, function() {
+            progressFight(myShip, enemy, $scope.fightStatus, function() {
               $scope.mode = $scope.GARAGE_MODE;
             });
             $scope.$apply();
@@ -515,7 +541,8 @@
     <div class="row">
       <div class="span8" style="text-align:center;">
         <a ng-if="mode==GARAGE_MODE" id="fight-button" ng-click="fight()" href="#">Fight</a>
-        <span ng-if="mode==FIGHT_MODE">The battle will finish in draw in {{timeLeft.min()}}:{{timeLeft.sec()}}</span>
+        <span ng-if="mode==FIGHT_MODE">The battle will finish in draw in {{fightStatus.min()}}:{{fightStatus.sec()}}</span>
+        <a ng-if="mode==FIGHT_MODE" ng-click="surrender()" href="#">Surrender</a>
       </div>
     </div>
     <div class="row">
@@ -536,7 +563,7 @@
                       color="red" text="Hp: {{room.hp}}/{{room.maxHp}}" />
                   </li>
                   <li ng-if="mode==FIGHT_MODE && room.hp > 0" ng-switch-when="Laser">
-                    <progress-bar complete="timeLeft.now - room.lastShotAt"
+                    <progress-bar complete="fightStatus.now - room.lastShotAt"
                       total="room.reloadTime" color="#CCCC00"
                       text="Next shot" />
                   </li>
@@ -609,7 +636,7 @@
                       color="red" text="Hp: {{room.hp}}/{{room.maxHp}}" />
                   </li>
                   <li ng-if="room.hp > 0" ng-switch-when="Laser">
-                    <progress-bar complete="timeLeft.now - room.lastShotAt"
+                    <progress-bar complete="fightStatus.now - room.lastShotAt"
                       total="room.reloadTime" color="#CCCC00"
                       text="Next shot" />
                   </li>
