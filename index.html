@@ -221,9 +221,9 @@
     this.level = 0;
     this.maxReloadRate = 5;
     this.energyDemand = 3;
-    this.upgrade = new Upgrade(500, 0, {maxHp: HP_UNIT});
+    this.upgrade = new Upgrade(100, 1000, {maxMaxShield: HP_UNIT});
     this.upgradesPerLevel = [
-      new Upgrade(100, 1000, {maxShield: 1}),
+      new Upgrade(100, 1000, {maxMaxShield: 1}),
       new Upgrade(200, 2000, {maxReloadRate: 1}),
       new Upgrade(500, 3500, {maxHp: HP_UNIT}),
     ];
