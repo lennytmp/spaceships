@@ -426,8 +426,11 @@
         maxRes = resources[resType];
       }
     }
+    if (maxRes == 100) {
+      maxRes = 0;
+    }
     for (resType in resources) {
-      ship.resources[resType] = Math.round(rand_bm(0, (maxRes-100)*2, 1));
+      ship.resources[resType] = Math.round(rand_bm(0, maxRes*2, 1));
     }
     console.log(JSON.stringify(ship.resources));
     var options = ship.getIvenstmentOptions();
