@@ -38,32 +38,44 @@
     {
       'Laser': 2,
       'Reactor': 2,
+      'Shield': 1,
     },
     {
       'Laser': 2,
       'Reactor': 2,
+      'Shield': 1,
     },
     {
       'Laser': 3,
       'Reactor': 3,
+      'Shield': 1,
     },
     {
       'Laser': 3,
       'Reactor': 3,
+      'Shield': 1,
     },
     {
       'Laser': 3,
       'Reactor': 3,
+      'Shield': 1,
     },
     {
       'Laser': 3,
       'Reactor': 3,
+      'Shield': 1,
+    },
+    {
+      'Laser': 3,
+      'Reactor': 3,
+      'Shield': 1,
     }
   ];
 
   var newRoomCosts = {
     'Laser': {'minerals': 300, 'gas': 300},
     'Reactor': {'minerals': 10, 'gas': 300},
+    'Shield': {'minerals': 800, 'gas': 800},
   }
 
   function Ship() {
@@ -201,6 +213,43 @@
     this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
   }
 
+  function ShieldRoom() {
+    this.title = "Shield";
+    this.hp = HP_UNIT;
+    this.maxHp = this.hp;
+    this.maxMaxShield = HP_UNIT;
+    this.level = 0;
+    this.maxReloadRate = 5;
+    this.energyDemand = 3;
+    this.upgrade = new Upgrade(500, 0, {maxHp: HP_UNIT});
+    this.upgradesPerLevel = [
+      new Upgrade(100, 1000, {maxShield: 1}),
+      new Upgrade(200, 2000, {maxReloadRate: 1}),
+      new Upgrade(500, 3500, {maxHp: HP_UNIT}),
+    ];
+
+    // Fight specific
+    this.energy = 0;
+    this.maxShield = 0;
+    this.curShield = 0;
+    this.reloadTime = 0;
+    this.reloadRate = 0;
+    this.lastActAt = 0;
+  }
+  ShieldRoom.prototype.updateProperties = function() {
+    if (this.hp == 0) {
+      this.energy = 0;
+      this.curShield = 0;
+    }
+    this.reloadTime = (50/this.maxReloadRate)*1000;
+    this.reloadTime *= this.energyDemand / this.energy;
+    this.reloadRate = Math.round(50*1000/this.reloadTime);
+    this.maxShield = Math.round(this.maxMaxShield*(this.hp/this.maxHp));
+    if (this.curShield > this.maxShield) {
+      this.curShield = this.maxShield;
+    }
+  }
+
   function ReactorRoom() {
     this.hp = HP_UNIT;
     this.maxHp = this.hp;
@@ -235,6 +284,9 @@
         break;
       case 'Reactor':
         r = new ReactorRoom();
+        break;
+      case 'Shield':
+        r = new ShieldRoom();
         break;
     }
     if (r === undefined) {
