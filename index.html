@@ -50,6 +50,14 @@
     {
       'Laser': 3,
       'Reactor': 3,
+    },
+    {
+      'Laser': 3,
+      'Reactor': 3,
+    },
+    {
+      'Laser': 3,
+      'Reactor': 3,
     }
   ];
 
@@ -78,8 +86,18 @@
     for (key in upgrade.improvements) {
       entity[key] += upgrade.improvements[key];
     }
-    for (var resType in upgrade.cost) {
-      upgrade.cost[resType] *= 2;
+    entity.level++;
+    if (entity.upgradesPerLevel === undefined) {
+      for (var resType in upgrade.cost) {
+        upgrade.cost[resType] *= 2;
+      }
+    } else {
+      var nextUpgrade = entity.upgradesPerLevel[entity.level];
+      if (nextUpgrade !== undefined) {
+        entity.upgrade = JSON.parse(JSON.stringify(nextUpgrade));
+      } else {
+        entity.upgrade = undefined;
+      }
     }
     this.newRoomOptions = this.getNewRoomOptions();
     return true;
@@ -155,17 +173,23 @@
     this.hp = HP_UNIT;
     this.maxHp = this.hp;
     this.maxDamage = HP_UNIT;
-    this.targetId = 0;
-    this.lastShotAt = 0;
+    this.level = 0;
     this.maxFireRate = 5;
     this.energyDemand = 3;
     this.upgrade = new Upgrade(100, 0, {maxFireRate: 1});
+    this.upgradesPerLevel = [
+      new Upgrade(100, 100, {maxFireRate: 1}),
+      new Upgrade(200, 200, {maxDamage: 1}),
+      new Upgrade(500, 150, {maxHp: HP_UNIT}),
+    ];
 
     // Fight specific
     this.energy = 0;
     this.damage = 0;
     this.reloadTime = 0;
     this.fireRate = 0;
+    this.targetId = 0;
+    this.lastShotAt = 0;
   }
   LaserRoom.prototype.updateProperties = function() {
     if (this.hp == 0) {
@@ -181,8 +205,16 @@
     this.hp = HP_UNIT;
     this.maxHp = this.hp;
     this.title = "Reactor";
+    this.level = 0;
     this.maxEnergySupply = 3;
     this.upgrade = new Upgrade(100, 100, {maxEnergySupply: 1});
+    this.upgradesPerLevel = [
+      new Upgrade(100, 200, {maxEnergySupply: 1}),
+      new Upgrade(300, 150, {maxHp: HP_UNIT}),
+      new Upgrade(200, 400, {maxEnergySupply: 1}),
+      new Upgrade(400, 800, {maxEnergySupply: 1}),
+      new Upgrade(1000, 300, {maxHp: HP_UNIT}),
+    ];
 
     // Fight specific
     this.energySupply = 0;
