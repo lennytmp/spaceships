@@ -73,7 +73,7 @@
   ];
 
   var newRoomCosts = {
-    'Laser': {'minerals': 300, 'gas': 300},
+    'Laser': {'minerals': 200, 'gas': 200},
     'Reactor': {'minerals': 10, 'gas': 300},
     'Shield': {'minerals': 800, 'gas': 800},
   }
@@ -85,9 +85,9 @@
     this.resources = {"minerals": 100, "gas": 100};
     this.maxRoomId = 0;
     this.isMine = false;
-    this.upgrade = new Upgrade(400, 0, {maxRooms: 1, level: 1});
+    this.upgrade = new Upgrade(100, 0, {maxRooms: 1, level: 1});
     this.newRoomOptions = this.getNewRoomOptions();
-    this.resourcesInvested = {"minerals": 0, "gas": 0};
+    this.rating = 90;
   }
 
   Ship.prototype.doUpgrade =  function(upgrade, entity) {
@@ -118,7 +118,6 @@
   Ship.prototype.chargeCost = function(cost) {
       for (var resType in cost) {
         this.resources[resType] -= cost[resType];
-        this.resourcesInvested[resType] += cost[resType];
       }
   }
 
@@ -191,8 +190,8 @@
     this.upgrade = new Upgrade(100, 0, {maxReloadRate: 1});
     this.upgradesPerLevel = [
       new Upgrade(100, 100, {maxReloadRate: 1}),
-      new Upgrade(200, 200, {maxDamage: 1}),
-      new Upgrade(500, 150, {maxHp: HP_UNIT}),
+      new Upgrade(300, 300, {maxHp: HP_UNIT}),
+      new Upgrade(600, 150, {maxReloadRate: 1}),
     ];
 
     // Fight specific
@@ -491,11 +490,13 @@
   function progressFight(myShip, enemy, fightStatus, callback) {
     if (fightStatus.mySurrender) {
       alert("You lost!");
+      myShip.rating = Math.round(myShip.rating*0.33);
       callback();
       return;
     }
     if (fightStatus.now > fightStatus.end) {
       alert("Draw due to timeout!");
+      myShip.rating = Math.round(myShip.rating*0.4);
       callback();
       return;
     }
@@ -512,11 +513,13 @@
       for (type in enemy.resources) {
         myShip.resources[type] += enemy.resources[type];
       }
+      myShip.rating *= 2;
       callback();
       return;
     }
     if (checkDead(myShip)) {
       alert("You lost!");
+      myShip.rating = Math.round(myShip.rating*0.33);
       callback();
       return;
     }
@@ -544,28 +547,17 @@
       return num;
   }
 
-  function investRandomly(ship, resources) {
-    var available = {};
-    var maxRes = 0;
-    for (resType in resources) {
-      if (maxRes < resources[resType]) {
-        maxRes = resources[resType];
-      }
+  function investRandomly(ship, rating) {
+    for (resType in ship.resources) {
+      ship.resources[resType] = rating;
     }
-    if (maxRes == 100) {
-      maxRes = 0;
-    }
-    for (resType in resources) {
-      ship.resources[resType] = Math.round(rand_bm(0, maxRes*2, 1));
-    }
-    console.log(JSON.stringify(ship.resources));
     var options = ship.getIvenstmentOptions();
     while (options.length > 0) {
         var i = Math.max(0, Math.round(Math.random()*options.length - 1));
         options[i].apply();
         options = ship.getIvenstmentOptions();
     }
-    for (resType in resources) {
+    for (resType in ship.resources) {
       ship.resources[resType] = Math.round(rand_bm(80*(ship.level+1), 140*(ship.level+1), 1));
     }
   }
@@ -611,7 +603,7 @@
         enemy.addRoom(new LaserRoom());
         enemy.addRoom(new ReactorRoom());
         $scope.enemy = enemy;
-        investRandomly(enemy, myShip.resourcesInvested);
+        investRandomly(enemy, myShip.rating);
         $scope.fightStatus = new FightStatus(Math.max(myShip.level, enemy.level));
         redistributeEnergy(myShip);
         redistributeEnergy(enemy);
