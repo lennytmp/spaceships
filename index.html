@@ -24,7 +24,7 @@
   var GARAGE_MODE = 0;
   var FIGHT_MODE = 1;
   var HP_UNIT = 10;
-  var MAX_FIGHT_TICKS = 40;
+  var MAX_FIGHT_TICKS = 30;
   var FIGHT_RESOLUTION_MS = 100;
   var GOD_MODE = true;
 
@@ -97,6 +97,9 @@
     this.chargeCost(upgrade.cost);
     for (key in upgrade.improvements) {
       entity[key] += upgrade.improvements[key];
+    }
+    if (entity.hp !== undefined) {
+      entity.hp = entity.maxHp;
     }
     entity.level++;
     if (entity.upgradesPerLevel === undefined) {
