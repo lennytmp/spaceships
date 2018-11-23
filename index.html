@@ -30,53 +30,6 @@
 
   var mode = GARAGE_MODE;
 
-  var roomsByShipLevel = [
-    {
-      'Laser': 1,
-      'Reactor': 1,
-    },
-    {
-      'Laser': 2,
-      'Reactor': 2,
-      'Shield': 1,
-    },
-    {
-      'Laser': 2,
-      'Reactor': 2,
-      'Shield': 1,
-    },
-    {
-      'Laser': 3,
-      'Reactor': 3,
-      'Shield': 1,
-    },
-    {
-      'Laser': 3,
-      'Reactor': 3,
-      'Shield': 1,
-    },
-    {
-      'Laser': 3,
-      'Reactor': 3,
-      'Shield': 1,
-    },
-    {
-      'Laser': 3,
-      'Reactor': 3,
-      'Shield': 1,
-    },
-    {
-      'Laser': 3,
-      'Reactor': 3,
-      'Shield': 1,
-    }
-  ];
-
-  var newRoomCosts = {
-    'Laser': {'minerals': 200, 'gas': 200},
-    'Reactor': {'minerals': 10, 'gas': 300},
-    'Shield': {'minerals': 800, 'gas': 800},
-  }
 
   function Ship() {
     this.rooms = [];
@@ -86,8 +39,12 @@
     this.maxRoomId = 0;
     this.isMine = false;
     this.upgrade = new Upgrade(100, 0, {maxRooms: 1, level: 1});
-    this.newRoomOptions = this.getNewRoomOptions();
     this.rating = 90;
+    this.newRoomCosts = {
+      'Laser': {'minerals': 200, 'gas': 200},
+      'Reactor': {'minerals': 10, 'gas': 300},
+      'Shield': {'minerals': 800, 'gas': 800},
+    }
   }
 
   Ship.prototype.doUpgrade =  function(upgrade, entity) {
@@ -114,7 +71,6 @@
         entity.upgrade = undefined;
       }
     }
-    this.newRoomOptions = this.getNewRoomOptions();
     return true;
   }
 
@@ -122,29 +78,6 @@
       for (var resType in cost) {
         this.resources[resType] -= cost[resType];
       }
-  }
-
-  Ship.prototype.getNewRoomOptions = function() {
-    var existingRooms = {};
-    for (id in this.rooms) {
-      var title = this.rooms[id].title;
-      if (existingRooms[title] === undefined) {
-        existingRooms[title] = 1;
-      } else {
-        existingRooms[title] += 1;
-      }
-    }
-    var available = roomsByShipLevel[this.level];
-    var result = [];
-    for (var title in available) {
-      if (existingRooms[title] !== undefined) {
-        var leftToBuild = available[title] - existingRooms[title];
-      }
-      if (leftToBuild > 0) {
-        result.push({'title': title, 'cost': newRoomCosts[title]});
-      }
-    }
-    return result;
   }
 
   Ship.prototype.getIvenstmentOptions = function() {
@@ -155,12 +88,11 @@
             me.doUpgrade(me.upgrade, me);
       }});
     }
-    var newRoomOptions = this.getNewRoomOptions();
-    for (var title in newRoomOptions) {
-      let option = newRoomOptions[title];
-      if (this.haveEnoughResources(option.cost)) {
-          result.push({'cost': option.cost, 'apply': function() {
-                  me.buyRoom(option);
+    for (var title in this.newRoomCosts) {
+      let cost = this.newRoomCosts[title];
+      if (this.haveEnoughResources(cost)) {
+          result.push({'cost': cost, 'apply': function() {
+                  me.buyRoom(title);
               }
           });
       }
@@ -275,13 +207,17 @@
     this.energySupply = Math.round(this.maxEnergySupply*(this.hp/this.maxHp));
   }
 
-  Ship.prototype.buyRoom = function(room) {
-    if (!room.cost || !this.haveEnoughResources(room.cost)) {
+  Ship.prototype.buyRoom = function(title) {
+    if (!this.newRoomCosts[title]) {
       return false;
     }
-    this.chargeCost(room.cost);
+    var cost = this.newRoomCosts[title];
+    if (!this.haveEnoughResources(cost)) {
+      return false;
+    }
+    this.chargeCost(cost);
     var r;
-    switch (room.title) {
+    switch (title) {
       case 'Laser':
         r = new LaserRoom();
         break;
@@ -303,7 +239,6 @@
   Ship.prototype.addRoom = function(room) {
     this.rooms[this.maxRoomId] = room;
     this.maxRoomId++;
-    this.newRoomOptions = this.getNewRoomOptions();
   }
 
   Ship.prototype.haveEnoughResources = function(cost) {
@@ -717,7 +652,7 @@
                   </li>
 
                   <!-- Everything else -->
-                  <li ng-switch-when="Laser" ng-if="mode==FIGHT_MODE">Energy: {{room.energy}}</li>
+                  <li ng-switch-when="Laser" ng-if="mode==FIGHT_MODE"><!-- ⚡⚡⚡-->Energy: {{room.energy}}</li>
                   <li ng-switch-when="Laser">Energy demand: {{room.energyDemand}}</li>
 
                   <li ng-switch-when="Laser" ng-if="mode==GARAGE_MODE">Damage:
@@ -771,10 +706,10 @@
           </li>
           <li ng-if="mode==GARAGE_MODE && myShip.maxRooms > myShip.rooms.length">
             New rooms available:
-            <ul ng-repeat="room in myShip.newRoomOptions">
+            <ul ng-repeat="(title, cost) in myShip.newRoomCosts">
               <li>
-                <a ng-if="myShip.haveEnoughResources(room.cost)" href="#" ng-click="myShip.buyRoom(room)">Buy {{room.title}}</a>
-                {{room}}
+                <a ng-if="myShip.haveEnoughResources(cost)" href="#" ng-click="myShip.buyRoom(title)">Buy {{title}}</a>
+                {{cost}}
               </li>
             </ul>
           </li>
