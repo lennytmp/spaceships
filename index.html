@@ -88,7 +88,7 @@
             me.doUpgrade(me.upgrade, me);
       }});
     }
-    for (var title in this.newRoomCosts) {
+    for (let title in this.newRoomCosts) {
       let cost = this.newRoomCosts[title];
       if (this.haveEnoughResources(cost)) {
           result.push({'cost': cost, 'apply': function() {
