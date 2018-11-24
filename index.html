@@ -350,7 +350,7 @@
         continue;
       }
       if (room.energyDemand !== undefined) {
-        totalEnergyDemand += room.energyDemand;
+        totalEnergyDemand += room.energyDemand - room.energy;
       }
     }
     while (this.freeEnergy > 0 && totalEnergyDemand > 0) {
