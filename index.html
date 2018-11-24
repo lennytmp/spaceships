@@ -137,7 +137,7 @@
           });
       }
     }
-    for (var id in this.rooms) {
+    for (let id in this.rooms) {
       let room = this.rooms[id];
       if (room.upgrade !== undefined && this.haveEnoughResources(room.upgrade.cost)) {
         result.push({'cost': room.upgrade.cost, 'apply': function() {
@@ -356,7 +356,7 @@
     while (this.freeEnergy > 0 && totalEnergyDemand > 0) {
       for (id in this.rooms) {
         var room = this.rooms[id];
-        if (room.hp == 0 || room.energyDemand === undefined) {
+        if (room.hp == 0 || room.energyDemand === undefined || room.energy >= room.energyDemand) {
           continue;
         }
         room.energy++;
@@ -558,9 +558,9 @@
     for (resType in ship.resources) {
       ship.resources[resType] = rating;
     }
-    var options = ship.getIvenstmentOptions();
+    let options = ship.getIvenstmentOptions();
     while (options.length > 0) {
-        var i = Math.max(0, Math.round(Math.random()*options.length - 1));
+        let i = Math.max(0, Math.round(Math.random()*options.length - 1));
         options[i].apply();
         options = ship.getIvenstmentOptions();
     }
