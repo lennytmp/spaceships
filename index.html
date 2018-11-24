@@ -6,18 +6,33 @@
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
   <style>
     .progressFrame {
-      height: 20px;
-      width: 100px;
+      height: 14pt;
+      margin: 2pt 0;
+      width: 80pt;
       border: 1px solid;
     }
     .progressFill {
-      height: 20px;
+      height: 14pt;
       white-space: nowrap;
       text-align: center;
     }
     .damaged {
       color: red;
       font-weight: bold;
+    }
+    .energyBar {
+      display:inline-block;
+      margin: 4pt 1pt 0pt 0pt;
+      width: 25pt;
+      height: 12pt;
+      border: 1px solid cyan;
+    }
+    .energyBar.filled {
+      border: 1px solid cyan;
+      background-color: cyan;
+    }
+    select, option {
+      font-size: 11pt;
     }
   </style>
   <script>
@@ -45,6 +60,31 @@
       'Reactor': {'minerals': 10, 'gas': 300},
       'Shield': {'minerals': 800, 'gas': 800},
     }
+    this.freeEnergy = 0;
+  }
+
+  Ship.prototype.decEnergyForRoom = function(roomId, vol) {
+    var room = this.rooms[roomId];
+    if (!room || room.energy < vol) {
+      return;
+    }
+    room.energy -= vol;
+    room.updateProperties(this);
+    this.freeEnergy += vol;
+  }
+
+  Ship.prototype.incEnergyForRoom = function(roomId, vol) {
+    var room = this.rooms[roomId];
+    var room = this.rooms[roomId];
+    if (!room || room.hp <= 0 || this.freeEnergy < vol || room.energy + vol > room.energyDemand) {
+      return;
+    }
+    this.freeEnergy -= vol;
+    if (room.energy == 0) {
+      resetTimers(room);
+    }
+    room.energy += vol;
+    room.updateProperties(this);
   }
 
   Ship.prototype.doUpgrade =  function(upgrade, entity) {
@@ -137,8 +177,9 @@
     this.targetId = 0;
     this.lastShotAt = 0;
   }
-  LaserRoom.prototype.updateProperties = function() {
+  LaserRoom.prototype.updateProperties = function(ship) {
     if (this.hp == 0) {
+      ship.freeEnergy += this.energy;
       this.energy = 0;
     }
     this.reloadTime = (50/this.maxReloadRate)*1000;
@@ -171,8 +212,9 @@
     this.reloadRate = 0;
     this.lastActAt = 0;
   }
-  ShieldRoom.prototype.updateProperties = function() {
+  ShieldRoom.prototype.updateProperties = function(ship) {
     if (this.hp == 0) {
+      ship.freeEnergy += this.energy;
       this.energy = 0;
       this.curShield = 0;
     }
@@ -203,8 +245,10 @@
     // Fight specific
     this.energySupply = 0;
   }
-  ReactorRoom.prototype.updateProperties = function() {
+  ReactorRoom.prototype.updateProperties = function(ship) {
+    var before = this.energySupply;
     this.energySupply = Math.round(this.maxEnergySupply*(this.hp/this.maxHp));
+    ship.freeEnergy += this.energySupply - before;
   }
 
   Ship.prototype.buyRoom = function(title) {
@@ -233,7 +277,6 @@
     }
     this.addRoom(r);
     return true;
-
   }
 
   Ship.prototype.addRoom = function(room) {
@@ -270,57 +313,79 @@
     }
   }
 
-  function initRooms(ship) {
+  function resetTimers(room) {
     var now = Date.now();
+    if (room.lastShotAt !== undefined) {
+      room.lastShotAt = now;
+    }
+    if (room.lastActAt !== undefined) {
+      room.lastActAt = now;
+    }
+  }
+
+  function initRooms(ship) {
     for (id in ship.rooms) {
       var room = ship.rooms[id];
-      if (room.lastShotAt !== undefined) {
-        room.lastShotAt = now;
-      }
-      if (room.lastActAt !== undefined) {
-        room.lastActAt = now;
-      }
+      resetTimers(room);
       if (room.shield !== undefined) {
+        room.maxShield = room.maxMaxShield;
         room.shield = room.maxShield;
+      }
+      if (room.energySupply !== undefined) {
+        room.energySupply = room.maxEnergySupply;
+        ship.freeEnergy += room.energySupply;
+      }
+      if (room.energyDemand !== undefined) {
+        room.energy = 0;
+      }
+    }
+  }
+
+  Ship.prototype.spendFreeEnergy = function() {
+    var totalEnergyDemand = 0;
+    for (id in this.rooms) {
+      var room = this.rooms[id];
+      if (room.hp == 0) {
+        continue;
+      }
+      if (room.energyDemand !== undefined) {
+        totalEnergyDemand += room.energyDemand;
+      }
+    }
+    while (this.freeEnergy > 0 && totalEnergyDemand > 0) {
+      for (id in this.rooms) {
+        var room = this.rooms[id];
+        if (room.hp == 0 || room.energyDemand === undefined) {
+          continue;
+        }
+        room.energy++;
+        this.freeEnergy--;
+        totalEnergyDemand--;
+        if (this.freeEnergy == 0 || totalEnergyDemand == 0) {
+          break;
+        }
       }
     }
   }
 
 
-  function redistributeEnergy(ship) {
-    var totalEnergySupply = 0;
-    var totalEnergyDemand = 0;
-    for (id in ship.rooms) {
-      var room = ship.rooms[id];
-      if (room.hp == 0) {
-        continue;
-      }
-      if (room.maxEnergySupply !== undefined) {
-        totalEnergySupply += room.energySupply;
-      }
-      if (room.energyDemand !== undefined) {
-        room.energy = 0;
-        totalEnergyDemand += room.energyDemand;
-      }
-    }
-    while (totalEnergySupply > 0 && totalEnergyDemand > 0) {
-      for (id in ship.rooms) {
-        var room = ship.rooms[id];
-        if (room.hp == 0 || room.energyDemand === undefined) {
-          continue;
-        }
-        room.energy += 1;
-        totalEnergySupply -= 1;
-        totalEnergyDemand -= 1;
-        if (totalEnergySupply == 0 || totalEnergyDemand == 0) {
-          break;
+  Ship.prototype.redistributeEnergy = function() {
+    while (this.freeEnergy < 0) {
+      for (id in this.rooms) {
+        var room = this.rooms[id];
+        if (room.energyDemand !== undefined && room.energy > 0) {
+          room.energy--;
+          this.freeEnergy++;
         }
       }
     }
-    for (id in ship.rooms) {
-      var room = ship.rooms[id];
+    if (!this.isMine) {
+      this.spendFreeEnergy();
+    }
+    for (id in this.rooms) {
+      var room = this.rooms[id];
       if (room.updateProperties !== undefined) {
-        room.updateProperties();
+        room.updateProperties(this);
       }
     }
   }
@@ -408,7 +473,7 @@
         target.hp = 0;
       }
       if (target.updateProperties !== undefined) {
-        target.updateProperties();
+        target.updateProperties(ship);
       }
     }
     var deltaShield = totalShieldBefore - totalShield;
@@ -429,6 +494,9 @@
     if (fightStatus.mySurrender) {
       alert("You lost!");
       myShip.rating = Math.round(myShip.rating*0.33);
+      for (var id in myShip.rooms) {
+        myShip.rooms[id].hp = 0;
+      }
       callback();
       return;
     }
@@ -438,10 +506,10 @@
       callback();
       return;
     }
+    enemy.redistributeEnergy();
+    myShip.redistributeEnergy();
     // TODO: This is biased towards the damage from my ship, it shouldn't be.
     // TODO: If the tab is not active - the timing can go wrong.
-    redistributeEnergy(myShip);
-    redistributeEnergy(enemy);
     enemyDamage = getShipTargetsDamage(myShip);
     myDamage = getShipTargetsDamage(enemy);
     applyDamage(enemy, enemyDamage);
@@ -531,6 +599,8 @@
 
       $scope.myShip = myShip;
       $scope.mode = GARAGE_MODE;
+      $scope.debug = true;
+      $scope.Math = window.Math;
 
       $scope.surrender = function() {
         $scope.fightStatus.mySurrender = true;
@@ -543,11 +613,11 @@
         $scope.enemy = enemy;
         investRandomly(enemy, myShip.rating);
         $scope.fightStatus = new FightStatus(Math.max(myShip.level, enemy.level));
-        redistributeEnergy(myShip);
-        redistributeEnergy(enemy);
-        // Energy must be redistributed before initRooms()
         initRooms(myShip);
         initRooms(enemy);
+        myShip.redistributeEnergy();
+        myShip.spendFreeEnergy();
+        enemy.redistributeEnergy();
         $scope.mode = $scope.FIGHT_MODE;
 
         setTimeout(function() {
@@ -606,6 +676,42 @@
         `,
       }
     });
+    app.filter('range', function() {
+      return function(input, total) {
+        total = parseInt(total);
+        for (var i=0; i<total; i++)
+          input.push(i);
+        return input;
+      };
+    });
+    app.directive("energyControl", function() {
+      return {
+        restrict: 'E',
+        scope: {
+          total: '<',
+          current: '<',
+          roomId: '<',
+          ship: '=',
+        },
+        template: `
+          <span ng-repeat="n in [] | range:total" ng-click="change($index)"
+            class="energyBar" ng-class="{'filled': current > $index}"></span>
+        `,
+        controller: ['$scope', function energyControl($scope) {
+          $scope.change = function(index) {
+            if (index == 0 && $scope.current == 1) {
+              $scope.ship.decEnergyForRoom($scope.roomId, 1);
+              return;
+            }
+            if (index < $scope.current) {
+              $scope.ship.decEnergyForRoom($scope.roomId, $scope.current - index - 1);
+            } else {
+              $scope.ship.incEnergyForRoom($scope.roomId, index - $scope.current + 1);
+            }
+          };
+        }],
+      }
+    });
   </script>
 </head>
 <body ng-controller="appController">
@@ -622,6 +728,10 @@
       <h2>Your ship</h2>
       <div id="you">
         <ul>
+          <li ng-if="myShip.freeEnergy > 0 && mode==FIGHT_MODE">
+            <span ng-repeat="n in [] | range:myShip.freeEnergy"
+              class="energyBar filled"></span>
+          </li>
           <li>Resources: {{ myShip.resources}}</li>
           <li>Level: {{ myShip.level}}</li>
           <li>Max rooms: {{ myShip.maxRooms}}</li>
@@ -635,13 +745,13 @@
                     <progress-bar complete="room.hp" total="room.maxHp"
                       color="red" text="Hp: {{room.hp}}/{{room.maxHp}}" />
                   </li>
-                  <li ng-switch-when="Laser" ng-if="mode==FIGHT_MODE && room.hp > 0">
-                    <progress-bar complete="fightStatus.now - room.lastShotAt"
+                  <li ng-switch-when="Laser" ng-if="mode==FIGHT_MODE && room.hp > 0 && room.energy > 0">
+                    <progress-bar complete="Math.max(0, fightStatus.now - room.lastShotAt)"
                       total="room.reloadTime" color="#CCCC00"
                       text="Next shot" />
                   </li>
-                  <li ng-switch-when="Shield" ng-if="mode==FIGHT_MODE && room.hp > 0">
-                    <progress-bar complete="fightStatus.now - room.lastActAt"
+                  <li ng-switch-when="Shield" ng-if="mode==FIGHT_MODE && room.hp > 0 && room.energy > 0">
+                    <progress-bar complete="Math.max(0, fightStatus.now - room.lastActAt)"
                       total="room.reloadTime" color="#CCCC00"
                       text="Next load" />
                   </li>
@@ -652,8 +762,10 @@
                   </li>
 
                   <!-- Everything else -->
-                  <li ng-switch-when="Laser" ng-if="mode==FIGHT_MODE"><!-- ⚡⚡⚡-->Energy: {{room.energy}}</li>
-                  <li ng-switch-when="Laser">Energy demand: {{room.energyDemand}}</li>
+                  <li ng-if="room.energyDemand && mode==FIGHT_MODE">
+                    <energy-control total="room.energyDemand" room-id="roomId"
+                    current="room.energy" ship="myShip" />
+                  </li>
 
                   <li ng-switch-when="Laser" ng-if="mode==GARAGE_MODE">Damage:
                       {{room.maxDamage}}
@@ -664,8 +776,9 @@
                     </span>
                   </li>
 
+                  <li ng-switch-when="Laser" ng-if="mode==GARAGE_MODE">Energy demand: {{room.energyDemand}}</li>
                   <li ng-switch-when="Laser" ng-if="mode==GARAGE_MODE">Reload rate: {{room.maxReloadRate}}</li>
-                  <li ng-switch-when="Laser" ng-if="mode==FIGHT_MODE">Reload rate:
+                  <li ng-switch-when="Laser" ng-if="mode==FIGHT_MODE && debug">Reload rate:
                     <span ng-class="{damaged: room.reloadRate < room.maxReloadRate}">
                       {{room.reloadRate}}
                     </span>
@@ -681,17 +794,17 @@
                   </li>
 
                   <li ng-switch-when="Shield" ng-if="mode==GARAGE_MODE">Reload rate: {{room.maxReloadRate}}</li>
-                  <li ng-switch-when="Shield" ng-if="mode==FIGHT_MODE">Reload rate:
+                  <li ng-switch-when="Shield" ng-if="mode==FIGHT_MODE && debug">Reload rate:
                     <span ng-class="{damaged: room.reloadRate < room.maxReloadRate}">
                       {{room.reloadRate}}
                     </span>
                   </li>
                   <li ng-switch-when="Shield" ng-if="mode==FIGHT_MODE">Energy: {{room.energy}}</li>
-                  <li ng-switch-when="Shield">Energy demand: {{room.energyDemand}}</li>
+                  <li ng-switch-when="Shield" ng-if="mode=FIGHT_MODE">Energy demand: {{room.energyDemand}}</li>
                   <li ng-switch-when="Shield" ng-if="mode==GARAGE_MODE">Max shield: {{room.maxMaxShield}}</li>
 
                   <li ng-switch-when="Reactor" ng-if="mode==GARAGE_MODE">Energy output: {{room.maxEnergySupply}}</li>
-                  <li ng-switch-when="Reactor" ng-if="mode==FIGHT_MODE">Energy output:
+                  <li ng-switch-when="Reactor" ng-if="mode==FIGHT_MODE && debug">Energy output:
                     <span ng-class="{damaged: room.damage < room.maxDamage}">
                       {{room.energySupply}}
                     </span>
@@ -720,6 +833,7 @@
       <h2 ng-if="mode==FIGHT_MODE">Enemy</h2>
       <div ng-if="mode==FIGHT_MODE" id="enemy">
         <ul>
+          <li ng-if="debug">Free energy: {{enemy.freeEnergy}}</li>
           <li>Resources: {{ enemy.resources}}</li>
           <li>Level: {{ enemy.level}}</li>
           <li>Rooms:
@@ -730,12 +844,12 @@
                     <progress-bar complete="room.hp" total="room.maxHp"
                       color="red" text="Hp: {{room.hp}}/{{room.maxHp}}" />
                   </li>
-                  <li ng-switch-when="Laser" ng-if="room.hp > 0">
+                  <li ng-switch-when="Laser" ng-if="debug && room.hp > 0">
                     <progress-bar complete="fightStatus.now - room.lastShotAt"
                       total="room.reloadTime" color="#CCCC00"
                       text="Next shot" />
                   </li>
-                  <li ng-switch-when="Shield" ng-if="room.hp > 0">
+                  <li ng-switch-when="Shield" ng-if="debug && room.hp > 0">
                     <progress-bar complete="fightStatus.now - room.lastActAt"
                       total="room.reloadTime" color="#CCCC00"
                       text="Next load" />
@@ -746,30 +860,30 @@
                       text="Shield" />
                   </li>
 
-                  <li ng-switch-when="Laser">Energy: {{room.energy}}</li>
-                  <li ng-switch-when="Laser">Damage:
+                  <li ng-switch-when="Laser" ng-if="debug">Energy: {{room.energy}}</li>
+                  <li ng-switch-when="Laser" ng-if="debug">Damage:
                     <span ng-class="{damaged: room.damage < room.maxDamage}">
                       {{room.damage}}
                     </span>
                   </li>
-                  <li ng-switch-when="Laser">Reload rate:
+                  <li ng-switch-when="Laser" ng-if="debug">Reload rate:
                     <span ng-class="{damaged: room.reloadRate < room.maxReloadRate}">
                       {{room.reloadRate}}
                     </span>
                   </li>
-                  <li ng-switch-when="Laser">Energy demand: {{room.energyDemand}}</li>
+                  <li ng-switch-when="Laser" ng-if="debug">Energy demand: {{room.energyDemand}}</li>
                   <li ng-switch-when="Laser">Targeting: {{myShip.rooms[room.targetId].title}}-{{room.targetId}}</li>
 
-                  <li ng-switch-when="Shield">Reload rate:
+                  <li ng-switch-when="Shield" ng-if="debug">Reload rate:
                     <span ng-class="{damaged: room.reloadRate < room.maxReloadRate}">
                       {{room.reloadRate}}
                     </span>
                   </li>
-                  <li ng-switch-when="Shield">Energy: {{room.energy}}</li>
-                  <li ng-switch-when="Shield">Energy demand: {{room.energyDemand}}</li>
+                  <li ng-switch-when="Shield" ng-if="debug">Energy: {{room.energy}}</li>
+                  <li ng-switch-when="Shield" ng-if="debug">Energy demand: {{room.energyDemand}}</li>
 
-                  <li ng-switch-when="Reactor">Max energy output: {{room.maxEnergySupply}}</li>
-                  <li ng-switch-when="Reactor">Energy output:
+                  <li ng-switch-when="Reactor" ng-if="debug">Max energy output: {{room.maxEnergySupply}}</li>
+                  <li ng-switch-when="Reactor" ng-if="debug">Energy output:
                     <span ng-class="{damaged: room.damage < room.maxDamage}">
                       {{room.energySupply}}
                     </span>
