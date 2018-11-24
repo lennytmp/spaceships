@@ -323,9 +323,10 @@
     }
   }
 
-  function initRooms(ship) {
-    for (id in ship.rooms) {
-      var room = ship.rooms[id];
+  Ship.prototype.initBeforeFight = function() {
+    this.freeEnergy = 0;
+    for (id in this.rooms) {
+      var room = this.rooms[id];
       resetTimers(room);
       if (room.shield !== undefined) {
         room.maxShield = room.maxMaxShield;
@@ -333,7 +334,7 @@
       }
       if (room.energySupply !== undefined) {
         room.energySupply = room.maxEnergySupply;
-        ship.freeEnergy += room.energySupply;
+        this.freeEnergy += room.energySupply;
       }
       if (room.energyDemand !== undefined) {
         room.energy = 0;
@@ -613,8 +614,8 @@
         $scope.enemy = enemy;
         investRandomly(enemy, myShip.rating);
         $scope.fightStatus = new FightStatus(Math.max(myShip.level, enemy.level));
-        initRooms(myShip);
-        initRooms(enemy);
+        myShip.initBeforeFight();
+        enemy.initBeforeFight();
         myShip.redistributeEnergy();
         myShip.spendFreeEnergy();
         enemy.redistributeEnergy();
