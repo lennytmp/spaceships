@@ -519,7 +519,7 @@
       }
     }
     var deltaShield = totalShieldBefore - totalShield;
-    while (deltaShield > 0) {
+    while (deltaShield > 0 && healthyShieldRooms.length > 0) {
       var i = Math.round(Math.random()*(healthyShieldRooms.length - 1));
       var shieldRoom = healthyShieldRooms[i];
       if (shieldRoom.shield > 0) {
