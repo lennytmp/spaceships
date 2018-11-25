@@ -904,8 +904,8 @@
                   </li>
                   <li ng-if="room.type==SHIELD_CLASS && room.hp > 0">
                     <progress-bar complete="room.shield"
-                      total="room.maxSHIELD_CLASS" color="#659EC7"
-                      text="SHIELD_CLASS" />
+                      total="room.maxShield" color="#659EC7"
+                      text="Shield: {{room.shield}} / {{room.maxShield}}" />
                   </li>
 
                   <li ng-if="room.type==WEAPON_CLASS && debug">Energy: {{room.energy}}</li>
