@@ -45,9 +45,31 @@
   var SHIELD_CLASS = 0;
   var WEAPON_CLASS = 1;
   var ENERGY_PROVIDER_CLASS = 2;
-
+  var OXYGEN_CLASS = 3;
   var mode = GARAGE_MODE;
+  var NAMES = ["Oliver", "George", "Harry", "Jack", "Jacob", "Noah", "Charlie", "Muhammad", "Thomas", "Oscar", "William", "James", "Henry", "Leo", "Alfie", "Joshua", "Freddie", "Archie", "Ethan", "Isaac", "Alexander", "Joseph", "Edward", "Samuel", "Max", "Daniel", "Arthur", "Lucas", "Mohammed", "Logan", "Theo", "Harrison", "Benjamin", "Mason", "Sebastian", "Finley", "Adam", "Dylan", "Zachary", "Riley", "Teddy", "Theodore", "David", "Toby", "Jake", "Louie", "Elijah", "Reuben", "Arlo", "Hugo", "Luca", "Jaxon", "Matthew", "Harvey", "Reggie", "Michael", "Harley", "Jude", "Albert", "Tommy", "Luke", "Stanley", "Jenson", "Frankie", "Jayden", "Gabriel", "Elliot", "Mohammad", "Ronnie", "Charles", "Louis", "Elliott", "Frederick", "Nathan", "Lewis", "Blake", "Rory", "Ollie", "Ryan", "Tyler", "Jackson", "Dexter", "Alex", "Austin", "Kai", "Albie", "Caleb", "Carter", "Bobby", "Ezra", "Ellis", "Leon", "Roman", "Ibrahim", "Aaron", "Liam", "Jesse", "Jasper", "Felix", "Jamie"];
 
+  function randomArrayElem(arr) {
+    var id = Math.round(Math.random()*arr.length);
+    return arr[id];
+  }
+
+  function CrewMember() {
+    this.maxHp = HP_UNIT;
+    this.title = randomArrayElem(NAMES);
+    this.maxDamage = 1;
+    this.maxReloadRate = 25;
+
+    this.hp = this.maxHp;
+    this.reloadRate = 0;
+    this.damage = 0;
+    this.lastProgressUpdateAt = 0;
+    this.progress = 0;
+  }
+  CrewMember.prototype.updateProperties = function(ship) {
+    this.reloadRate = Math.round(this.maxReloadRate*this.hp/this.maxHp);
+    this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
+  }
 
   function Ship() {
     this.rooms = [];
@@ -62,6 +84,7 @@
       'Minigun': {'minerals': 400, 'gas': 300},
       'Reactor': {'minerals': 10, 'gas': 300},
       'Shield': {'minerals': 800, 'gas': 800},
+      'Oxygen Generator': {'minerals': 1000, 'gas': 1000},
     }
     this.upgrade = new Upgrade(100, 0, {maxRooms: 1});
     this.freeEnergy = 0;
@@ -173,6 +196,7 @@
       new Upgrade(600, 150, {maxReloadRate: 1}),
     ];
     this.upgrade = this.upgradesPerLevel[this.level];
+    this.crew = [];
 
     // Fight specific
     this.energy = 0;
@@ -198,13 +222,14 @@
     this.maxDamage = 2;
     this.level = 0;
     this.maxReloadRate = 10;
-    this.energyDemand = 3;
+    this.energyDemand = 2;
     this.upgradesPerLevel = [
       new Upgrade(100, 100, {maxDamage: 1}),
       new Upgrade(300, 300, {maxHp: HP_UNIT}),
       new Upgrade(600, 150, {maxDamage: 1}),
     ];
     this.upgrade = this.upgradesPerLevel[this.level];
+    this.crew = [];
 
     // Fight specific
     this.energy = 0;
@@ -238,6 +263,7 @@
       new Upgrade(500, 3500, {maxHp: HP_UNIT}),
     ];
     this.upgrade = this.upgradesPerLevel[this.level];
+    this.crew = [];
 
     // Fight specific
     this.energy = 0;
@@ -278,6 +304,7 @@
       new Upgrade(1000, 300, {maxHp: HP_UNIT}),
     ];
     this.upgrade = this.upgradesPerLevel[this.level];
+    this.crew = [];
 
     // Fight specific
     this.energySupply = 0;
@@ -286,6 +313,26 @@
     var before = this.energySupply;
     this.energySupply = Math.round(this.maxEnergySupply*(this.hp/this.maxHp));
     ship.freeEnergy += this.energySupply - before;
+  }
+
+  function OxygenRoom() {
+    this.hp = HP_UNIT;
+    this.maxHp = this.hp;
+    this.title = "Oxygen Generator";
+    this.type = OXYGEN_CLASS;
+    this.level = 0;
+    this.energyDemand = 2;
+    this.maxCapacity = 1;
+    this.crew = [
+      new CrewMember()
+    ];
+
+    // Fight specific
+    this.energy = 0;
+    this.capacity = 0;
+  }
+  OxygenRoom.prototype.updateProperties = function(ship) {
+    this.capacity = Math.round(this.maxCapacity*(this.hp/this.maxHp));
   }
 
   Ship.prototype.buyRoom = function(title) {
@@ -310,6 +357,9 @@
         break;
       case 'Shield':
         r = new ShieldRoom();
+        break;
+      case 'Oxygen Generator':
+        r = new OxygenRoom();
         break;
     }
     if (r === undefined) {
@@ -636,6 +686,7 @@
       $scope.SHIELD_CLASS = SHIELD_CLASS;
       $scope.WEAPON_CLASS = WEAPON_CLASS;
       $scope.ENERGY_PROVIDER_CLASS = ENERGY_PROVIDER_CLASS;
+      $scope.OXYGEN_CLASS = OXYGEN_CLASS;
 
 
       var myShip = new Ship();
@@ -857,9 +908,17 @@
                       {{room.energySupply}}
                     </span>
                   </li>
-
                   <li ng-if="mode==GARAGE_MODE && room.upgrade">
                     <upgrade entity="room" ship="myShip" />
+                  </li>
+                  <li ng-if="room.crew && room.crew.length">Crew:
+                    <ul ng-repeat="mem in room.crew">
+                      <li>{{mem.title}}</li>
+                      <li>
+                        <progress-bar complete="mem.hp" total="mem.maxHp"
+                          color="red" text="Hp: {{mem.hp}}/{{mem.maxHp}}" />
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </li>
@@ -935,6 +994,15 @@
                     <span ng-class="{damaged: room.damage < room.maxDamage}">
                       {{room.energySupply}}
                     </span>
+                  </li>
+                  <li ng-if="room.crew && room.crew.length">
+                    <ul ng-repeat="mem in room.crew">
+                      <li>{{mem.title}}</li>
+                      <li>
+                        <progress-bar complete="mem.hp" total="mem.maxHp"
+                          color="red" text="Hp: {{mem.hp}}/{{mem.maxHp}}" />
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </li>
