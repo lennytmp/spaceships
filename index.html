@@ -154,13 +154,15 @@
             me.doUpgrade(me.upgrade, me);
       }});
     }
-    for (let title in this.newRoomCosts) {
-      let cost = this.newRoomCosts[title];
-      if (this.haveEnoughResources(cost)) {
-          result.push({'cost': cost, 'apply': function() {
-                  me.buyRoom(title);
-              }
-          });
+    if (this.maxRooms > this.rooms.length) {
+      for (let title in this.newRoomCosts) {
+        let cost = this.newRoomCosts[title];
+        if (this.haveEnoughResources(cost)) {
+            result.push({'cost': cost, 'apply': function() {
+                    me.buyRoom(title);
+                }
+            });
+        }
       }
     }
     for (let id in this.rooms) {
@@ -824,7 +826,7 @@
       <div id="you">
         <ul>
           <li ng-if="myShip.freeEnergy > 0 && mode==FIGHT_MODE">
-            Free energy:
+            Unused energy:
             <span ng-repeat="n in [] | range:myShip.freeEnergy"
               class="energyBar filled"></span>
           </li>
@@ -939,7 +941,7 @@
       <h2 ng-if="mode==FIGHT_MODE">Enemy</h2>
       <div ng-if="mode==FIGHT_MODE" id="enemy">
         <ul>
-          <li ng-if="debug">Free energy: {{enemy.freeEnergy}}</li>
+          <li ng-if="debug">Unused energy: {{enemy.freeEnergy}}</li>
           <li>Resources: {{ enemy.resources}}</li>
           <li>Level: {{ enemy.level}}</li>
           <li>Rooms:
@@ -994,7 +996,7 @@
                       {{room.energySupply}}
                     </span>
                   </li>
-                  <li ng-if="room.crew && room.crew.length">
+                  <li ng-if="room.crew && room.crew.length">Crew:
                     <ul ng-repeat="mem in room.crew">
                       <li>{{mem.title}}</li>
                       <li>
