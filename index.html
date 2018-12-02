@@ -41,7 +41,7 @@
   var HP_UNIT = 10;
   var MAX_FIGHT_TICKS = 30;
   var FIGHT_RESOLUTION_MS = 100;
-  var GOD_MODE = true;
+  var GOD_MODE = false;
   var SHIELD_CLASS = 0;
   var WEAPON_CLASS = 1;
   var ENERGY_PROVIDER_CLASS = 2;
@@ -50,7 +50,7 @@
   var NAMES = ["Oliver", "George", "Harry", "Jack", "Jacob", "Noah", "Charlie", "Muhammad", "Thomas", "Oscar", "William", "James", "Henry", "Leo", "Alfie", "Joshua", "Freddie", "Archie", "Ethan", "Isaac", "Alexander", "Joseph", "Edward", "Samuel", "Max", "Daniel", "Arthur", "Lucas", "Mohammed", "Logan", "Theo", "Harrison", "Benjamin", "Mason", "Sebastian", "Finley", "Adam", "Dylan", "Zachary", "Riley", "Teddy", "Theodore", "David", "Toby", "Jake", "Louie", "Elijah", "Reuben", "Arlo", "Hugo", "Luca", "Jaxon", "Matthew", "Harvey", "Reggie", "Michael", "Harley", "Jude", "Albert", "Tommy", "Luke", "Stanley", "Jenson", "Frankie", "Jayden", "Gabriel", "Elliot", "Mohammad", "Ronnie", "Charles", "Louis", "Elliott", "Frederick", "Nathan", "Lewis", "Blake", "Rory", "Ollie", "Ryan", "Tyler", "Jackson", "Dexter", "Alex", "Austin", "Kai", "Albie", "Caleb", "Carter", "Bobby", "Ezra", "Ellis", "Leon", "Roman", "Ibrahim", "Aaron", "Liam", "Jesse", "Jasper", "Felix", "Jamie"];
 
   function randomArrayElem(arr) {
-    var id = Math.round(Math.random()*arr.length);
+    let id = Math.round(Math.random()*arr.length);
     return arr[id];
   }
 
@@ -78,7 +78,7 @@
     this.resources = {"minerals": 100, "gas": 100};
     this.maxRoomId = 0;
     this.isMine = false;
-    this.rating = 90;
+    this.rating = 200;
     this.newRoomCosts = {
       'Laser': {'minerals': 200, 'gas': 200},
       'Minigun': {'minerals': 400, 'gas': 300},
@@ -91,7 +91,7 @@
   }
 
   Ship.prototype.decEnergyForRoom = function(roomId, vol) {
-    var room = this.rooms[roomId];
+    let room = this.rooms[roomId];
     if (!room || room.energy < vol) {
       return;
     }
@@ -101,8 +101,7 @@
   }
 
   Ship.prototype.incEnergyForRoom = function(roomId, vol) {
-    var room = this.rooms[roomId];
-    var room = this.rooms[roomId];
+    let room = this.rooms[roomId];
     if (!room || room.hp <= 0 || this.freeEnergy < vol || room.energy + vol > room.energyDemand) {
       return;
     }
@@ -127,11 +126,11 @@
     }
     entity.level++;
     if (entity.upgradesPerLevel === undefined) {
-      for (var resType in upgrade.cost) {
+      for (let resType in upgrade.cost) {
         upgrade.cost[resType] *= 2;
       }
     } else {
-      var nextUpgrade = entity.upgradesPerLevel[entity.level];
+      let nextUpgrade = entity.upgradesPerLevel[entity.level];
       if (nextUpgrade !== undefined) {
         entity.upgrade = JSON.parse(JSON.stringify(nextUpgrade));
       } else {
@@ -142,14 +141,14 @@
   }
 
   Ship.prototype.chargeCost = function(cost) {
-      for (var resType in cost) {
+      for (let resType in cost) {
         this.resources[resType] -= cost[resType];
       }
   }
 
   Ship.prototype.getIvenstmentOptions = function() {
-    var result = [];
-    var me = this;
+    let result = [];
+    let me = this;
     if (this.upgrade !== undefined && this.haveEnoughResources(this.upgrade.cost)) {
       result.push({'cost': this.upgrade.cost, 'apply': function() {
             me.doUpgrade(me.upgrade, me);
@@ -310,7 +309,7 @@
     this.energySupply = 0;
   }
   ReactorRoom.prototype.updateProperties = function(ship) {
-    var before = this.energySupply;
+    let before = this.energySupply;
     this.energySupply = Math.round(this.maxEnergySupply*(this.hp/this.maxHp));
     ship.freeEnergy += this.energySupply - before;
   }
@@ -339,12 +338,12 @@
     if (!this.newRoomCosts[title]) {
       return false;
     }
-    var cost = this.newRoomCosts[title];
+    let cost = this.newRoomCosts[title];
     if (!this.haveEnoughResources(cost)) {
       return false;
     }
     this.chargeCost(cost);
-    var r;
+    let r;
     switch (title) {
       case 'Minigun':
         r = new MinigunRoom();
@@ -378,7 +377,7 @@
       if (GOD_MODE && this.isMine) {
         return true;
       }
-      for (var resType in cost) {
+      for (let resType in cost) {
         if (this.resources[resType] < cost[resType]) {
           return false;
         }
@@ -390,9 +389,9 @@
     if (mode != GARAGE_MODE) {
       return;
     }
-    var recovered = false;
-    for (var k in myShip.rooms) {
-      var room = myShip.rooms[k];
+    let recovered = false;
+    for (let k in myShip.rooms) {
+      let room = myShip.rooms[k];
       if (room.hp < room.maxHp) {
         room.hp += 1;
         if (room.hp > room.maxHp) {
@@ -404,7 +403,7 @@
   }
 
   function resetTimers(room) {
-    var now = Date.now();
+    let now = Date.now();
     if (room.lastProgressUpdateAt !== undefined) {
       room.lastProgressUpdateAt = now;
     }
@@ -413,7 +412,7 @@
   Ship.prototype.initBeforeFight = function() {
     this.freeEnergy = 0;
     for (id in this.rooms) {
-      var room = this.rooms[id];
+      let room = this.rooms[id];
       resetTimers(room);
       if (room.shield !== undefined) {
         room.maxShield = room.maxMaxShield;
@@ -430,9 +429,9 @@
   }
 
   Ship.prototype.spendFreeEnergy = function() {
-    var totalEnergyDemand = 0;
+    let totalEnergyDemand = 0;
     for (id in this.rooms) {
-      var room = this.rooms[id];
+      let room = this.rooms[id];
       if (room.hp == 0) {
         continue;
       }
@@ -442,7 +441,7 @@
     }
     while (this.freeEnergy > 0 && totalEnergyDemand > 0) {
       for (id in this.rooms) {
-        var room = this.rooms[id];
+        let room = this.rooms[id];
         if (room.hp == 0 || room.energyDemand === undefined || room.energy >= room.energyDemand) {
           continue;
         }
@@ -460,7 +459,7 @@
   Ship.prototype.redistributeEnergy = function() {
     while (this.freeEnergy < 0) {
       for (id in this.rooms) {
-        var room = this.rooms[id];
+        let room = this.rooms[id];
         if (room.energyDemand !== undefined && room.energy > 0) {
           room.energy--;
           this.freeEnergy++;
@@ -471,7 +470,7 @@
       this.spendFreeEnergy();
     }
     for (id in this.rooms) {
-      var room = this.rooms[id];
+      let room = this.rooms[id];
       if (room.updateProperties !== undefined) {
         room.updateProperties(this);
       }
@@ -480,10 +479,10 @@
 
 
   function getShipTargetsDamage(ship) {
-    var myDamage = {};
-    var now = Date.now();
-    for (var k in ship.rooms) {
-      var room = ship.rooms[k];
+    let myDamage = {};
+    let now = Date.now();
+    for (let k in ship.rooms) {
+      let room = ship.rooms[k];
       if (room.type == WEAPON_CLASS) {
         room.progress += (now - room.lastProgressUpdateAt)*2*room.reloadRate/1000;
         room.lastProgressUpdateAt = now;
@@ -504,7 +503,7 @@
   }
 
   function checkDead(ship) {
-    for (var k in ship.rooms) {
+    for (let k in ship.rooms) {
       if (ship.rooms[k].hp > 0) {
         return false;
       }
@@ -513,15 +512,15 @@
   }
 
   function setNewTargetsIfNeeded(ship, enemy) {
-    var newTarget;
-    for (var k in enemy.rooms) {
+    let newTarget;
+    for (let k in enemy.rooms) {
       if (enemy.rooms[k].hp > 0) {
         newTarget = k;
         break;
       }
     }
-    for (var k in ship.rooms) {
-      var room = ship.rooms[k];
+    for (let k in ship.rooms) {
+      let room = ship.rooms[k];
       if (room.type == WEAPON_CLASS) {
         if (enemy.rooms[room.targetId].hp <= 0) {
           room.targetId = newTarget;
@@ -531,12 +530,12 @@
   }
 
   function applyDamage(ship, damage) {
-    var myDamage = {};
-    var now = Date.now();
-    var totalShield = 0;
-    var healthyShieldRooms = [];
-    for (var id in ship.rooms) {
-      var room = ship.rooms[id];
+    let myDamage = {};
+    let now = Date.now();
+    let totalShield = 0;
+    let healthyShieldRooms = [];
+    for (let id in ship.rooms) {
+      let room = ship.rooms[id];
       if (room.type == SHIELD_CLASS) {
         if (room.hp <= 0) {
           continue;
@@ -551,12 +550,12 @@
         totalShield += room.shield;
       }
     }
-    var totalShieldBefore = totalShield;
-    for (var id in damage) {
-      var target = ship.rooms[id];
-      var dmg = Math.round(damage[id]);
+    let totalShieldBefore = totalShield;
+    for (let id in damage) {
+      let target = ship.rooms[id];
+      let dmg = Math.round(damage[id]);
       if (totalShield > 0) {
-        var blockedByShield = Math.min(totalShield, dmg);
+        let blockedByShield = Math.min(totalShield, dmg);
         totalShield -= blockedByShield;
         dmg -= blockedByShield;
       }
@@ -568,10 +567,10 @@
         target.updateProperties(ship);
       }
     }
-    var deltaShield = totalShieldBefore - totalShield;
+    let deltaShield = totalShieldBefore - totalShield;
     while (deltaShield > 0 && healthyShieldRooms.length > 0) {
-      var i = Math.round(Math.random()*(healthyShieldRooms.length - 1));
-      var shieldRoom = healthyShieldRooms[i];
+      let i = Math.round(Math.random()*(healthyShieldRooms.length - 1));
+      let shieldRoom = healthyShieldRooms[i];
       if (shieldRoom.shield > 0) {
         healthyShieldRooms[i].shield--;
         deltaShield--;
@@ -586,7 +585,7 @@
     if (fightStatus.mySurrender) {
       alert("You lost!");
       myShip.rating = Math.round(myShip.rating*0.33);
-      for (var id in myShip.rooms) {
+      for (let id in myShip.rooms) {
         myShip.rooms[id].hp = 0;
       }
       callback();
@@ -632,7 +631,7 @@
 
   // Kudos to https://stackoverflow.com/a/49434653
   function rand_bm(min, max, skew) {
-      var u = 0, v = 0;
+      let u = 0, v = 0;
       while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
       while(v === 0) v = Math.random();
       let num = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
@@ -661,18 +660,18 @@
   }
 
   function FightStatus(lvl) {
-    var now = Date.now();
+    let now = Date.now();
     this.now = now;
     this.start = now;
     this.end = now + MAX_FIGHT_TICKS*1000*(lvl*0.5+1);
     this.mySurrender = false;
   }
   FightStatus.prototype.min = function() {
-    var d = (this.end - this.now)/1000;
+    let d = (this.end - this.now)/1000;
     return Math.floor(d/60);
   }
   FightStatus.prototype.sec = function() {
-    var d = (this.end - this.now)/1000;
+    let d = (this.end - this.now)/1000;
     return Math.round(d - this.min()*60);
   }
   </script>
@@ -689,7 +688,7 @@
       $scope.OXYGEN_CLASS = OXYGEN_CLASS;
 
 
-      var myShip = new Ship();
+      let myShip = new Ship();
       myShip.isMine = true;
       myShip.addRoom(new LaserRoom());
       myShip.addRoom(new ReactorRoom());
@@ -704,8 +703,7 @@
       };
 
       $scope.fight = function() {
-        var enemy = new Ship();
-        enemy.addRoom(new LaserRoom());
+        let enemy = new Ship();
         enemy.addRoom(new ReactorRoom());
         $scope.enemy = enemy;
         investRandomly(enemy, myShip.rating);
@@ -776,7 +774,7 @@
     app.filter('range', function() {
       return function(input, total) {
         total = parseInt(total);
-        for (var i=0; i<total; i++)
+        for (let i=0; i<total; i++)
           input.push(i);
         return input;
       };
@@ -929,6 +927,7 @@
             <ul ng-repeat="(title, cost) in myShip.newRoomCosts">
               <li>
                 <a ng-if="myShip.haveEnoughResources(cost)" href="#" ng-click="myShip.buyRoom(title)">Buy {{title}}</a>
+                <span ng-if="!myShip.haveEnoughResources(cost)">{{title}}</span>
                 {{cost}}
               </li>
             </ul>
