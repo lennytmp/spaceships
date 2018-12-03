@@ -69,6 +69,9 @@
   CrewMember.prototype.updateProperties = function(ship) {
     this.reloadRate = Math.round(this.maxReloadRate*this.hp/this.maxHp);
     this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
+    if (this.hp > 0 && this.damage == 0) {
+      this.damage = 1;
+    }
   }
 
   function Ship() {
@@ -214,6 +217,9 @@
     }
     this.reloadRate = Math.round(this.maxReloadRate*this.energy/this.energyDemand);
     this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
+    if (this.hp > 0 && this.damage == 0) {
+      this.damage = 1;
+    }
   }
   function MinigunRoom() {
     this.title = "Minigun";
@@ -247,6 +253,9 @@
     }
     this.reloadRate = Math.round(this.maxReloadRate*this.energy/this.energyDemand);
     this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
+    if (this.hp > 0 && this.damage == 0) {
+      this.damage = 1;
+    }
   }
 
   function ShieldRoom() {
@@ -416,6 +425,9 @@
     for (id in this.rooms) {
       let room = this.rooms[id];
       resetTimers(room);
+      if (room.progress !== undefined) {
+        room.progress = 0;
+      }
       if (room.shield !== undefined) {
         room.maxShield = room.maxMaxShield;
         room.shield = room.maxShield;
