@@ -12,6 +12,7 @@ The project was created with the desire to provide a similar gameplay while bein
 
 ## Features
 
+* The more controls the player has - the slower the battle
 * Crew member control over the ship
 * Teleport to use crew to attack another ship
 * Engines to be able to escape the fight
@@ -29,6 +30,9 @@ The project was created with the desire to provide a similar gameplay while bein
 * Different upgrades at different planets
 * Trading with planets
 * Many vs Many
+  * Owning multiple ships
+  * Transferring the crew between them
+  * Adding "taunt" on the ship during the fight
 * Trading with ships
 * Smart AI & smart ship generation
 * Tutorial mode
