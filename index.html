@@ -41,7 +41,7 @@
   var HP_UNIT = 10;
   var MAX_FIGHT_TICKS = 30;
   var FIGHT_RESOLUTION_MS = 100;
-  var GOD_MODE = false;
+  var GOD_MODE = true;
   var SHIELD_CLASS = 0;
   var WEAPON_CLASS = 1;
   var ENERGY_PROVIDER_CLASS = 2;
@@ -49,14 +49,9 @@
   var mode = GARAGE_MODE;
   var NAMES = ["Oliver", "George", "Harry", "Jack", "Jacob", "Noah", "Charlie", "Muhammad", "Thomas", "Oscar", "William", "James", "Henry", "Leo", "Alfie", "Joshua", "Freddie", "Archie", "Ethan", "Isaac", "Alexander", "Joseph", "Edward", "Samuel", "Max", "Daniel", "Arthur", "Lucas", "Mohammed", "Logan", "Theo", "Harrison", "Benjamin", "Mason", "Sebastian", "Finley", "Adam", "Dylan", "Zachary", "Riley", "Teddy", "Theodore", "David", "Toby", "Jake", "Louie", "Elijah", "Reuben", "Arlo", "Hugo", "Luca", "Jaxon", "Matthew", "Harvey", "Reggie", "Michael", "Harley", "Jude", "Albert", "Tommy", "Luke", "Stanley", "Jenson", "Frankie", "Jayden", "Gabriel", "Elliot", "Mohammad", "Ronnie", "Charles", "Louis", "Elliott", "Frederick", "Nathan", "Lewis", "Blake", "Rory", "Ollie", "Ryan", "Tyler", "Jackson", "Dexter", "Alex", "Austin", "Kai", "Albie", "Caleb", "Carter", "Bobby", "Ezra", "Ellis", "Leon", "Roman", "Ibrahim", "Aaron", "Liam", "Jesse", "Jasper", "Felix", "Jamie"];
 
-  function randomArrayElem(arr) {
-    let id = Math.round(Math.random()*arr.length);
-    return arr[id];
-  }
-
   function CrewMember() {
     this.maxHp = HP_UNIT;
-    this.title = randomArrayElem(NAMES);
+    this.title = pickRandomEl(NAMES);
     this.maxDamage = 1;
     this.maxReloadRate = 25;
 
@@ -206,7 +201,7 @@
     this.energy = 0;
     this.damage = 0;
     this.reloadRate = 0;
-    this.targetId = 0;
+    this.targetId = -1;
     this.lastProgressUpdateAt = 0;
     this.progress = 0;
   }
@@ -242,7 +237,7 @@
     this.energy = 0;
     this.damage = 0;
     this.reloadRate = 0;
-    this.targetId = 0;
+    this.targetId = -1;
     this.lastProgressUpdateAt = 0;
     this.progress = 0;
   }
@@ -439,6 +434,9 @@
       if (room.energyDemand !== undefined) {
         room.energy = 0;
       }
+      if (room.targetId !== undefined) {
+        room.targetId = -1;
+      }
     }
   }
 
@@ -491,6 +489,28 @@
     }
   }
 
+  Ship.prototype.setNewTargetsIfNeeded = function(enemy) {
+    let possibleTargets = [];
+    for (let k in enemy.rooms) {
+      if (enemy.rooms[k].hp > 0) {
+        possibleTargets.push(k);
+      }
+    }
+    if (possibleTargets.length == 0) {
+      throw "New target can't be chosen, the fight should have finished";
+      return;
+    }
+    for (let k in this.rooms) {
+      let room = this.rooms[k];
+      if (room.type == WEAPON_CLASS) {
+        if (room.targetId == -1 || enemy.rooms[room.targetId].hp <= 0) {
+          room.targetId = pickRandomEl(possibleTargets).value;
+        }
+      }
+    }
+  }
+
+
 
   function getShipTargetsDamage(ship) {
     let myDamage = {};
@@ -525,22 +545,12 @@
     return true;
   }
 
-  function setNewTargetsIfNeeded(ship, enemy) {
-    let newTarget;
-    for (let k in enemy.rooms) {
-      if (enemy.rooms[k].hp > 0) {
-        newTarget = k;
-        break;
-      }
+  function pickRandomEl(arr) {
+    if (arr.length == 0) {
+      throw "Can't pick random element from an empty array";
     }
-    for (let k in ship.rooms) {
-      let room = ship.rooms[k];
-      if (room.type == WEAPON_CLASS) {
-        if (enemy.rooms[room.targetId].hp <= 0) {
-          room.targetId = newTarget;
-        }
-      }
-    }
+    let index = Math.round(Math.random()*(arr.length -1));
+    return {index: index, value: arr[index]};
   }
 
   function applyDamage(ship, damage) {
@@ -583,13 +593,12 @@
     }
     let deltaShield = totalShieldBefore - totalShield;
     while (deltaShield > 0 && healthyShieldRooms.length > 0) {
-      let i = Math.round(Math.random()*(healthyShieldRooms.length - 1));
-      let shieldRoom = healthyShieldRooms[i];
-      if (shieldRoom.shield > 0) {
-        healthyShieldRooms[i].shield--;
+      let randChoice = pickRandomEl(healthyShieldRooms);
+      if (randChoice.value.shield > 0) {
+        randChoice.value.shield--;
         deltaShield--;
       } else {
-        healthyShieldRooms.splice(i);
+        healthyShieldRooms.splice(randChoice.index);
       }
     }
   }
@@ -634,8 +643,8 @@
       callback();
       return;
     }
-    setNewTargetsIfNeeded(myShip, enemy);
-    setNewTargetsIfNeeded(enemy, myShip);
+    myShip.setNewTargetsIfNeeded(enemy);
+    enemy.setNewTargetsIfNeeded(myShip);
 
     setTimeout(function() {
         fightStatus.now = Date.now();
@@ -664,9 +673,9 @@
     }
     let options = ship.getIvenstmentOptions();
     while (options.length > 0) {
-        let i = Math.max(0, Math.round(Math.random()*options.length - 1));
-        options[i].apply();
-        options = ship.getIvenstmentOptions();
+      let randChoice = pickRandomEl(options);
+      randChoice.value.apply();
+      options = ship.getIvenstmentOptions();
     }
     for (resType in ship.resources) {
       ship.resources[resType] = Math.round(rand_bm(60*(ship.level+1), 100*(ship.level+1), 1));
@@ -727,6 +736,8 @@
         myShip.redistributeEnergy();
         myShip.spendFreeEnergy();
         enemy.redistributeEnergy();
+        myShip.setNewTargetsIfNeeded(enemy);
+        enemy.setNewTargetsIfNeeded(myShip);
         $scope.mode = $scope.FIGHT_MODE;
 
         setTimeout(function() {
@@ -896,7 +907,7 @@
                   </li>
 
                   <li ng-if="room.type==WEAPON_CLASS && mode==FIGHT_MODE">
-                    <select ng-model="room.targetId" class="target" ng-init="room.targetId='0'">
+                    <select ng-model="room.targetId" class="target">
                       <option ng-repeat="(enemyRoomId, enemyRoom) in enemy.rooms"
                         value="{{enemyRoomId}}"
                         ng-selected="room.targetId==enemyRoomId">

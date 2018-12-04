@@ -9,7 +9,6 @@ The project was created with the desire to provide a similar gameplay while bein
 ## Bug fixes
 
 * Implement timers with Webworker https://www.w3schools.com/html/html5_webworkers.asp 
-* Pick targets randomly
 
 ## Features
 
