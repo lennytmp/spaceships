@@ -1,6 +1,6 @@
 <html ng-app="gameApp">
 <head>
-  <title>Spaceships Prototype</title>
+  <title>Vornaxy Online</title>
   <script src="https://code.jquery.com/jquery-3.3.1.min.js" ></script>
   <link rel="stylesheet" href="http://getbootstrap.com/2.0.4/assets/css/bootstrap-responsive.css">
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
@@ -837,15 +837,19 @@
 <body ng-controller="appController">
   <div class="container">
     <div class="row">
-      <div class="span8" style="text-align:center;">
+      <div class="span8" style="line-height: 1.4em;">
+        <span style="font-size: 1.4em; font-weight:bold;">Vornaxy Online | </span> 
         <a ng-if="mode==GARAGE_MODE" id="fight-button" ng-click="fight()" href="#">Fight</a>
         <span ng-if="mode==FIGHT_MODE">The battle will finish in draw in {{fightStatus.min()}}:{{fightStatus.sec()}}</span>
         <a ng-if="mode==FIGHT_MODE" ng-click="surrender()" href="#">Surrender</a>
       </div>
     </div>
     <div class="row">
+      <hr />
+    </div>
+    <div class="row">
     <div class="span4">
-      <h2>Your ship</h2>
+      <h3>Your ship</h3>
       <div id="you">
         <ul>
           <li ng-if="myShip.freeEnergy > 0 && mode==FIGHT_MODE">
@@ -961,7 +965,7 @@
       </div>
     </div>
     <div class="span4">
-      <h2 ng-if="mode==FIGHT_MODE">Enemy</h2>
+      <h3 ng-if="mode==FIGHT_MODE">Enemy</h3>
       <div ng-if="mode==FIGHT_MODE" id="enemy">
         <ul>
           <li ng-if="debug">Unused energy: {{enemy.freeEnergy}}</li>
