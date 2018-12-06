@@ -11,6 +11,13 @@ function BaseEnergyConsumerRoom(demand) {
   this.energy = 0;
 }
 
+BaseEnergyConsumerRoom.updateProperties = function(ship) {
+  if (this.hp == 0) {
+    ship.freeEnergy += this.energy;
+    this.energy = 0;
+  }
+}
+
 function BaseActionRoom(reloadRate) {
   this.lastProgressUpdateAt = 0;
   this.progress = 0;
@@ -18,10 +25,21 @@ function BaseActionRoom(reloadRate) {
   this.reloadRate = 0;
 }
 
+BaseActionRoom.updateProperties = function(ship) {
+  this.reloadRate = Math.round(this.maxReloadRate*this.energy/this.energyDemand);
+}
+
 function BaseWeaponRoom(damage) {
   this.maxDamage = damage;
   this.damage = 0;
   this.targetId = -1;
+}
+
+BaseWeaponRoom.updateProperties = function(ship) {
+  this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
+  if (this.hp > 0 && this.damage == 0) {
+    this.damage = 1;
+  }
 }
 
 function LaserRoom() {
@@ -124,38 +142,23 @@ LaserRoom.prototype.loadFrom = function(data) {
 }
 
 LaserRoom.prototype.updateProperties = function(ship) {
-  if (this.hp == 0) {
-    ship.freeEnergy += this.energy;
-    this.energy = 0;
-  }
-  this.reloadRate = Math.round(this.maxReloadRate*this.energy/this.energyDemand);
-  this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
-  if (this.hp > 0 && this.damage == 0) {
-    this.damage = 1;
-  }
+  BaseEnergyConsumerRoom.updateProperties.call(this, ship);
+  BaseActionRoom.updateProperties.call(this, ship);
+  BaseWeaponRoom.updateProperties.call(this, ship);
 }
 
 MinigunRoom.prototype.updateProperties = function(ship) {
-  if (this.hp == 0) {
-    ship.freeEnergy += this.energy;
-    this.energy = 0;
-  }
-  this.reloadRate = Math.round(this.maxReloadRate*this.energy/this.energyDemand);
-  this.damage = Math.round(this.maxDamage*(this.hp/this.maxHp));
-  if (this.hp > 0 && this.damage == 0) {
-    this.damage = 1;
-  }
+  BaseEnergyConsumerRoom.updateProperties.call(this, ship);
+  BaseActionRoom.updateProperties.call(this, ship);
+  BaseWeaponRoom.updateProperties.call(this, ship);
 }
 
 ShieldRoom.prototype.updateProperties = function(ship) {
+  BaseEnergyConsumerRoom.updateProperties.call(this, ship);
+  BaseActionRoom.updateProperties.call(this, ship);
   if (this.hp == 0) {
-    ship.freeEnergy += this.energy;
-    this.energy = 0;
     this.curShield = 0;
   }
-  this.reloadTime = (50/this.maxReloadRate)*1000;
-  this.reloadTime *= this.energyDemand / this.energy;
-  this.reloadRate = Math.round(50*1000/this.reloadTime);
   this.maxShield = Math.round(this.maxMaxShield*(this.hp/this.maxHp));
   if (this.curShield > this.maxShield) {
     this.curShield = this.maxShield;
