@@ -5,6 +5,7 @@
   <script src="ship.js"></script>
   <script src="rooms.js"></script>
   <script src="crew.js"></script>
+  <script src="battle.js"></script>
   <script src="globals.js"></script>
   <script src="utils.js"></script>
   <link rel="stylesheet" href="http://getbootstrap.com/2.0.4/assets/css/bootstrap-responsive.css">
@@ -40,86 +41,6 @@
       font-size: 1em;
     }
   </style>
-  <script>
-
-
-  function progressFight(myShip, enemy, fightStatus, callback) {
-    if (fightStatus.mySurrender) {
-      alert("You lost!");
-      myShip.rating = Math.round(myShip.rating*0.33);
-      for (let id in myShip.rooms) {
-        myShip.rooms[id].hp = 0;
-      }
-      callback();
-      return;
-    }
-    if (fightStatus.now > fightStatus.end) {
-      alert("Draw due to timeout!");
-      myShip.rating = Math.round(myShip.rating*0.4);
-      callback();
-      return;
-    }
-    enemy.redistributeEnergy();
-    myShip.redistributeEnergy();
-    enemyDamage = myShip.getTargetsDamage();
-    myDamage = enemy.getTargetsDamage();
-    enemy.applyDamage(enemyDamage);
-    myShip.applyDamage(myDamage);
-    if (enemy.checkDead()) {
-      alert("You won!");
-      for (type in enemy.resources) {
-        myShip.resources[type] += enemy.resources[type];
-      }
-      myShip.rating *= 2;
-      callback();
-      return;
-    }
-    if (myShip.checkDead()) {
-      alert("You lost!");
-      myShip.rating = Math.round(myShip.rating*0.33);
-      callback();
-      return;
-    }
-    myShip.setNewTargetsIfNeeded(enemy);
-    enemy.setNewTargetsIfNeeded(myShip);
-
-    setTimeout(function() {
-        fightStatus.now = Date.now();
-        progressFight(myShip, enemy, fightStatus, callback);
-      }, FIGHT_RESOLUTION_MS);
-  }
-
-  function investRandomly(ship, rating) {
-    for (resType in ship.resources) {
-      ship.resources[resType] = rating;
-    }
-    let options = ship.getIvenstmentOptions();
-    while (options.length > 0) {
-      let randChoice = pickRandomEl(options);
-      randChoice.value.apply();
-      options = ship.getIvenstmentOptions();
-    }
-    for (resType in ship.resources) {
-      ship.resources[resType] = Math.round(rand_bm(60*(ship.level+1), 100*(ship.level+1), 1));
-    }
-  }
-
-  function FightStatus(lvl) {
-    let now = Date.now();
-    this.now = now;
-    this.start = now;
-    this.end = now + MAX_FIGHT_TICKS*1000*(lvl*0.5+1);
-    this.mySurrender = false;
-  }
-  FightStatus.prototype.min = function() {
-    let d = (this.end - this.now)/1000;
-    return Math.floor(d/60);
-  }
-  FightStatus.prototype.sec = function() {
-    let d = (this.end - this.now)/1000;
-    return Math.round(d - this.min()*60);
-  }
-  </script>
   <script>
   // Angular magic starts here
   var app = angular.module("gameApp", []);
@@ -157,10 +78,7 @@
       };
 
       $scope.fight = function() {
-        let enemy = new Ship();
-        enemy.addRoom(new ReactorRoom());
-        $scope.enemy = enemy;
-        investRandomly(enemy, myShip.rating);
+        $scope.enemy = generateEnemy(rating);
         $scope.fightStatus = new FightStatus(Math.max(myShip.level, enemy.level));
         myShip.initBeforeFight();
         enemy.initBeforeFight();
