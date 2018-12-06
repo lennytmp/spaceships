@@ -14,7 +14,7 @@ function Ship() {
   this.resources = {"minerals": 100, "gas": 100};
   this.maxRoomId = 0;
   this.isMine = false;
-  this.rating = 200;
+  this.rating = 199;
   // TODO: newRoomCosts should be a global?
   this.newRoomCosts = {
     'Laser': {'minerals': 200, 'gas': 200},
