@@ -8,22 +8,6 @@ function BaseRoom(title, type, hp) {
   this.upgradesPerLevel = [];
 }
 
-BaseRoom.loadFrom = function(data) {
-  for (key in data) {
-    if (typeof data[key] !== 'object') {
-      this[key] = data[key];
-    }
-  }
-  for (i in data.crew) {
-    this.crew.push(CrewMember.loadFrom(data.crew[i]));
-  }
-  for (i in data.upgradesPerLevel) {
-    let upgrade = data.upgradesPerLevel[i];
-    this.upgradesPerLevel.push(Upgrade.loadFrom(upgrade)); 
-  }
-  this.upgrade = this.upgradesPerLevel[this.level];
-}
-
 function BaseEnergyConsumerRoom(demand) {
   this.energyDemand = demand;
   this.energy = 0;
@@ -74,8 +58,6 @@ function LaserRoom() {
   this.upgrade = this.upgradesPerLevel[this.level];
 }
 
-LaserRoom.loadFrom = BaseRoom.loadFrom;
-
 function MinigunRoom() {
   BaseRoom.call(this, "Minigun", WEAPON_CLASS, HP_UNIT);
   BaseEnergyConsumerRoom.call(this, 2);
@@ -89,8 +71,6 @@ function MinigunRoom() {
   ];
   this.upgrade = this.upgradesPerLevel[this.level];
 }
-
-MinigunRoom.loadFrom = BaseRoom.loadFrom;
 
 function ShieldRoom() {
   BaseRoom.call(this, "Shield", SHIELD_CLASS, HP_UNIT);
@@ -112,8 +92,6 @@ function ShieldRoom() {
   this.curShield = 0;
 }
 
-ShieldRoom.loadFrom = BaseRoom.loadFrom;
-
 function ReactorRoom() {
   BaseRoom.call(this, "Reactor", ENERGY_PROVIDER_CLASS, HP_UNIT);
 
@@ -131,8 +109,6 @@ function ReactorRoom() {
   this.energySupply = 0;
 }
 
-ReactorRoom.loadFrom = BaseRoom.loadFrom;
-
 function OxygenRoom() {
   BaseRoom.call(this, "Oxygen Generator", OXYGEN_CLASS, HP_UNIT);
   BaseEnergyConsumerRoom.call(this, 2);
@@ -145,8 +121,6 @@ function OxygenRoom() {
   // Fight specific
   this.capacity = 0;
 }
-
-OxygenRoom.loadFrom = BaseRoom.loadFrom;
 
 LaserRoom.prototype.updateProperties = function(ship) {
   BaseEnergyConsumerRoom.updateProperties.call(this, ship);
@@ -202,5 +176,28 @@ function createRoom(title) {
       break;
   }
   return r;
+}
+
+function loadRoomFrom(data) {
+  var room = createRoom(data.title);
+  for (key in data) {
+    if (typeof data[key] !== 'object') {
+      room[key] = data[key];
+    }
+  }
+  room.crew = [];
+  for (i in data.crew) {
+    room.crew.push(CrewMember.loadFrom(data.crew[i]));
+  }
+  room.upgradesPerLevel = [];
+  for (i in data.upgradesPerLevel) {
+    let upgrade = data.upgradesPerLevel[i];
+    room.upgradesPerLevel.push(Upgrade.loadFrom(upgrade)); 
+  }
+  room.upgrade = room.upgradesPerLevel[room.level];
+  if (room.loadFrom !== undefined) {
+    room.loadFrom(data);
+  }
+  return room;
 }
 

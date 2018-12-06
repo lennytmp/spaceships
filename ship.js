@@ -37,10 +37,7 @@ Ship.loadFrom = function(data) {
   ship.resources = data.resources;
   ship.upgrade = Upgrade.loadFrom(data.upgrade);
   for (let id in data.rooms) {
-    let room = createRoom(data.rooms[id].title);
-    // TODO: uncomment the line below once all methods are ready
-    // room.loadFrom(data.rooms[id]);
-    ship.rooms.push(room);
+    ship.rooms.push(loadRoomFrom(data.rooms[id]));
   }
   return ship;
 }
