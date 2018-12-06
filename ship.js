@@ -166,7 +166,9 @@ Ship.prototype.initBeforeFight = function() {
   this.freeEnergy = 0;
   for (id in this.rooms) {
     let room = this.rooms[id];
-    resetTimers(room);
+    if (room.resetTimers !== undefined) {
+      room.resetTimers();
+    }
     if (room.progress !== undefined) {
       room.progress = 0;
     }
@@ -256,3 +258,101 @@ Ship.prototype.setNewTargetsIfNeeded = function(enemy) {
     }
   }
 }
+
+Ship.prototype.applyDamage = function(damage) {
+  let myDamage = {};
+  let now = Date.now();
+  let totalShield = 0;
+  let healthyShieldRooms = [];
+  for (let id in this.rooms) {
+    let room = this.rooms[id];
+    if (room.type == SHIELD_CLASS) {
+      if (room.hp <= 0) {
+        continue;
+      }
+      healthyShieldRooms.push(room);
+      room.progress += (now - room.lastProgressUpdateAt)*2*room.reloadRate/1000;
+      room.lastProgressUpdateAt = now;
+      if (room.progress >= 100) {
+        room.progress = 0;
+        room.shield = Math.min(room.shield + 1, room.maxShield);
+      }
+      totalShield += room.shield;
+    }
+  }
+  let totalShieldBefore = totalShield;
+  for (let id in damage) {
+    let target = this.rooms[id];
+    let dmg = Math.round(damage[id]);
+    if (totalShield > 0) {
+      let blockedByShield = Math.min(totalShield, dmg);
+      totalShield -= blockedByShield;
+      dmg -= blockedByShield;
+    }
+    target.hp -= dmg;
+    if (target.hp < 0) {
+      target.hp = 0;
+    }
+    if (target.updateProperties !== undefined) {
+      target.updateProperties(this);
+    }
+  }
+  let deltaShield = totalShieldBefore - totalShield;
+  while (deltaShield > 0 && healthyShieldRooms.length > 0) {
+    let randChoice = pickRandomEl(healthyShieldRooms);
+    if (randChoice.value.shield > 0) {
+      randChoice.value.shield--;
+      deltaShield--;
+    } else {
+      healthyShieldRooms.splice(randChoice.index);
+    }
+  }
+}
+
+Ship.prototype.checkDead = function(ship) {
+  for (let k in this.rooms) {
+    if (this.rooms[k].hp > 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Ship.prototype.getTargetsDamage = function() {
+  let myDamage = {};
+  let now = Date.now();
+  for (let k in this.rooms) {
+    let room = this.rooms[k];
+    if (room.type == WEAPON_CLASS) {
+      room.progress += (now - room.lastProgressUpdateAt)*2*room.reloadRate/1000;
+      room.lastProgressUpdateAt = now;
+      if (room.progress < 100) {
+        continue;
+      }
+      room.progress = 0;
+      if (room.hp <= 0) {
+        continue;
+      }
+      if (myDamage[room.targetId] === undefined) {
+        myDamage[room.targetId] = 0;
+      }
+      myDamage[room.targetId] += room.damage;
+    }
+  }
+  return myDamage;
+}
+
+Ship.prototype.recoverHp = function() {
+  let recovered = false;
+  for (let k in this.rooms) {
+    let room = this.rooms[k];
+    if (room.hp < room.maxHp) {
+      room.hp += 1;
+      if (room.hp > room.maxHp) {
+        room.hp = room.maxHp;
+      }
+      break;
+    }
+  }
+}
+

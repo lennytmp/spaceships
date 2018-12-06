@@ -25,6 +25,13 @@ function BaseActionRoom(reloadRate) {
   this.progress = 0;
   this.maxReloadRate = reloadRate;
   this.reloadRate = 0;
+
+  this.resetTimers = function() {
+    let now = Date.now();
+    if (this.lastProgressUpdateAt !== undefined) {
+      this.lastProgressUpdateAt = now;
+    }
+  }
 }
 
 BaseActionRoom.updateProperties = function(ship) {
