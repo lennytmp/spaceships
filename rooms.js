@@ -4,6 +4,24 @@ function BaseRoom(title, type, hp) {
   this.hp = hp;
   this.maxHp = this.hp;
   this.level = 0;
+  this.crew = [];
+  this.upgradesPerLevel = [];
+}
+
+BaseRoom.loadFrom = function(data) {
+  for (key in data) {
+    if (typeof data[key] !== 'object') {
+      this[key] = data[key];
+    }
+  }
+  for (i in data.crew) {
+    this.crew.push(CrewMember.loadFrom(data.crew[i]));
+  }
+  for (i in data.upgradesPerLevel) {
+    let upgrade = data.upgradesPerLevel[i];
+    this.upgradesPerLevel.push(Upgrade.loadFrom(upgrade)); 
+  }
+  this.upgrade = this.upgradesPerLevel[this.level];
 }
 
 function BaseEnergyConsumerRoom(demand) {
@@ -54,8 +72,9 @@ function LaserRoom() {
     new Upgrade(600, 150, {maxReloadRate: 1}),
   ];
   this.upgrade = this.upgradesPerLevel[this.level];
-  this.crew = [];
 }
+
+LaserRoom.loadFrom = BaseRoom.loadFrom;
 
 function MinigunRoom() {
   BaseRoom.call(this, "Minigun", WEAPON_CLASS, HP_UNIT);
@@ -69,8 +88,9 @@ function MinigunRoom() {
     new Upgrade(600, 150, {maxDamage: 1}),
   ];
   this.upgrade = this.upgradesPerLevel[this.level];
-  this.crew = [];
 }
+
+MinigunRoom.loadFrom = BaseRoom.loadFrom;
 
 function ShieldRoom() {
   BaseRoom.call(this, "Shield", SHIELD_CLASS, HP_UNIT);
@@ -85,13 +105,14 @@ function ShieldRoom() {
     new Upgrade(500, 3500, {maxHp: HP_UNIT}),
   ];
   this.upgrade = this.upgradesPerLevel[this.level];
-  this.crew = [];
 
   // Fight specific
   this.maxShield = 0;
   this.shield = 0;
   this.curShield = 0;
 }
+
+ShieldRoom.loadFrom = BaseRoom.loadFrom;
 
 function ReactorRoom() {
   BaseRoom.call(this, "Reactor", ENERGY_PROVIDER_CLASS, HP_UNIT);
@@ -105,11 +126,12 @@ function ReactorRoom() {
     new Upgrade(1000, 300, {maxHp: HP_UNIT}),
   ];
   this.upgrade = this.upgradesPerLevel[this.level];
-  this.crew = [];
 
   // Fight specific
   this.energySupply = 0;
 }
+
+ReactorRoom.loadFrom = BaseRoom.loadFrom;
 
 function OxygenRoom() {
   BaseRoom.call(this, "Oxygen Generator", OXYGEN_CLASS, HP_UNIT);
@@ -124,22 +146,7 @@ function OxygenRoom() {
   this.capacity = 0;
 }
 
-LaserRoom.prototype.loadFrom = function(data) {
-  let room = new LaserRoom();
-  for (key in data) {
-    if (typeof data[key] !== 'object') {
-      room[key] = data[key];
-    }
-  }
-
-  room.upgradesPerLevel = [
-    new Upgrade(100, 100, {maxReloadRate: 1}),
-    new Upgrade(300, 300, {maxHp: HP_UNIT}),
-    new Upgrade(600, 150, {maxReloadRate: 1}),
-  ];
-  room.upgrade = room.upgradesPerLevel[room.level];
-  room.crew = [];
-}
+OxygenRoom.loadFrom = BaseRoom.loadFrom;
 
 LaserRoom.prototype.updateProperties = function(ship) {
   BaseEnergyConsumerRoom.updateProperties.call(this, ship);
