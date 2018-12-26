@@ -78,19 +78,19 @@
       };
 
       $scope.fight = function() {
-        $scope.enemy = generateEnemy(rating);
-        $scope.fightStatus = new FightStatus(Math.max(myShip.level, enemy.level));
-        myShip.initBeforeFight();
-        enemy.initBeforeFight();
-        myShip.redistributeEnergy();
-        myShip.spendFreeEnergy();
-        enemy.redistributeEnergy();
-        myShip.setNewTargetsIfNeeded(enemy);
-        enemy.setNewTargetsIfNeeded(myShip);
+        $scope.enemy = generateEnemy($scope.myShip.rating);
+        $scope.fightStatus = new FightStatus(Math.max(myShip.level, $scope.enemy.level));
+        $scope.myShip.initBeforeFight();
+        $scope.enemy.initBeforeFight();
+        $scope.myShip.redistributeEnergy();
+        $scope.myShip.spendFreeEnergy();
+        $scope.enemy.redistributeEnergy();
+        $scope.myShip.setNewTargetsIfNeeded($scope.enemy);
+        $scope.enemy.setNewTargetsIfNeeded($scope.myShip);
         $scope.mode = $scope.FIGHT_MODE;
 
         setTimeout(function() {
-            progressFight(myShip, enemy, $scope.fightStatus, function() {
+            progressFight($scope.myShip, $scope.enemy, $scope.fightStatus, function() {
               $scope.mode = $scope.GARAGE_MODE;
             });
             $scope.$apply();
